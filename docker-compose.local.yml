@@ -1,0 +1,19 @@
+# Local / CI compose without the external ecosystem network.
+services:
+  atlas:
+    build:
+      context: ..
+      dockerfile: atlas/Dockerfile
+    environment:
+      ATLAS_PORT: "9330"
+      ATLAS_PUBLIC_URL: ${ATLAS_PUBLIC_URL:-http://127.0.0.1:9330}
+      ATLAS_GAIA_URL: ${ATLAS_GAIA_URL:-https://iot.modelmarket.dev}
+      ATLAS_CORS_ORIGINS: "*"
+      ATLAS_POLL_INTERVAL_S: "30"
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      ATLAS_LLM_PROVIDER: deepseek_api
+      ATLAS_LLM_MODEL: deepseek-v4-pro
+      ATLAS_LLM_CONFIG: /app/config/model_providers.yaml
+    ports:
+      - "127.0.0.1:9330:9330"
+    restart: unless-stopped

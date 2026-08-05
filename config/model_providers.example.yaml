@@ -1,0 +1,18 @@
+# ATLAS LLM providers — DeepSeek is the production default.
+# Runtime also loads monorepo data/config/model_providers.yaml when present.
+# Keys come from the environment (never commit secrets).
+default_provider: deepseek_api
+providers:
+  deepseek_api:
+    api_key: null
+    api_key_env: DEEPSEEK_API_KEY
+    base_url: https://api.deepseek.com/v1
+    enabled: true
+    models:
+      heavy: deepseek-v4-pro
+      light: deepseek-v4-flash
+    provider_type: openai_compatible
+    capabilities:
+      max_tokens: 4096
+      context_window: 1000000
+      supports_streaming: true

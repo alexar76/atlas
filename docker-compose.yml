@@ -1,0 +1,42 @@
+# ATLAS — physical sensor map over GAIA live relays.
+# Build from monorepo root:
+#   docker compose -f atlas/docker-compose.yml up -d --build
+#
+# Loopback bind only — publish via nginx TLS edge (see deploy/nginx/atlas.modelmarket.dev.conf).
+
+services:
+  atlas:
+    build:
+      context: ..
+      dockerfile: atlas/Dockerfile
+    environment:
+      ATLAS_PORT: "9330"
+      ATLAS_PUBLIC_URL: ${ATLAS_PUBLIC_URL:-https://atlas.modelmarket.dev}
+      ATLAS_GAIA_URL: ${ATLAS_GAIA_URL:-https://iot.modelmarket.dev}
+      ATLAS_CORS_ORIGINS: ${ATLAS_CORS_ORIGINS:-https://atlas.modelmarket.dev,https://magic-ai-factory.com,https://iot.modelmarket.dev}
+      ATLAS_POLL_INTERVAL_S: ${ATLAS_POLL_INTERVAL_S:-30}
+      ATLAS_RATE_LIMIT_PER_MIN: ${ATLAS_RATE_LIMIT_PER_MIN:-180}
+      ATLAS_GAIA_CONCURRENCY: ${ATLAS_GAIA_CONCURRENCY:-4}
+      # Production LLM — DeepSeek (deepseek-v4-pro). Key from host .env / secrets.
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      ATLAS_LLM_PROVIDER: ${ATLAS_LLM_PROVIDER:-deepseek_api}
+      ATLAS_LLM_MODEL: ${ATLAS_LLM_MODEL:-deepseek-v4-pro}
+      ATLAS_LLM_MODEL_LIGHT: ${ATLAS_LLM_MODEL_LIGHT:-deepseek-v4-flash}
+      ATLAS_LLM_BASE_URL: ${ATLAS_LLM_BASE_URL:-https://api.deepseek.com/v1}
+      ATLAS_LLM_CONFIG: ${ATLAS_LLM_CONFIG:-/app/config/model_providers.yaml}
+    ports:
+      - "127.0.0.1:9330:9330"
+    restart: unless-stopped
+    networks:
+      - default
+      - ecosystem
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9330/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+
+networks:
+  ecosystem:
+    external: true
