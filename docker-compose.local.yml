@@ -1,0 +1,36 @@
+# Local / CI compose without the external ecosystem network.
+services:
+  atlas:
+    build:
+      context: ..
+      dockerfile: atlas/Dockerfile
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      ATLAS_PORT: "9330"
+      ATLAS_PUBLIC_URL: ${ATLAS_PUBLIC_URL:-http://127.0.0.1:9330}
+      ATLAS_GAIA_URL: ${ATLAS_GAIA_URL:-https://iot.modelmarket.dev}
+      ATLAS_CORS_ORIGINS: "*"
+      ATLAS_POLL_INTERVAL_S: "30"
+      ATLAS_SIGNING_KEY_PATH: ${ATLAS_SIGNING_KEY_PATH:-/data/atlas_signing_key}
+      ATLAS_SIGNING_SEED_B64: ${ATLAS_SIGNING_SEED_B64:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      TOGETHER_API_KEY: ${TOGETHER_API_KEY:-}
+      ATLAS_LLM_PROVIDER: ${ATLAS_LLM_PROVIDER:-deepseek_api}
+      ATLAS_LLM_MODEL: ${ATLAS_LLM_MODEL:-deepseek-v4-pro}
+      ATLAS_LLM_CONFIG: /app/config/model_providers.yaml
+      ATLAS_OLLAMA_URL: ${ATLAS_OLLAMA_URL:-http://host.docker.internal:11434}
+      ATLAS_LM_STUDIO_URL: ${ATLAS_LM_STUDIO_URL:-http://host.docker.internal:1234/v1}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:9330:9330"
+    volumes:
+      - atlas_data:/data
+    restart: unless-stopped
+
+volumes:
+  atlas_data:

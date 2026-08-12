@@ -1,0 +1,75 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+# Prefixed name — short "atlas" on PyPI is claimable by strangers (see oracles/core).
+name = "aimarket-atlas"
+version = "0.1.1"
+description = "ATLAS — planetary physical-sensor map over GAIA relays (LIVE/SIM pins + Analyst)"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [{ name = "AICOM (alexar76)" }]
+keywords = [
+    "atlas",
+    "gaia",
+    "iot",
+    "sensors",
+    "maplibre",
+    "aimarket",
+    "aicom",
+    "fastapi",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Framework :: FastAPI",
+    "Topic :: Scientific/Engineering :: GIS",
+]
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.34.0",
+    "httpx>=0.28.0",
+    "orjson>=3.10.0",
+    "pydantic>=2.11.0",
+    "pydantic-settings>=2.9.0",
+    "PyYAML>=6.0.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "httpx>=0.28",
+]
+
+[project.urls]
+Homepage = "https://atlas.modelmarket.dev/"
+Documentation = "https://github.com/alexar76/atlas"
+Repository = "https://github.com/alexar76/atlas"
+Issues = "https://github.com/alexar76/atlas/issues"
+Landing = "https://alexar76.github.io/atlas/"
+
+[project.scripts]
+atlas = "atlas.serve:main"
+atlas-serve = "atlas.serve:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["atlas*"]
+exclude = ["tests*", "frontend*", "docs*", "backend*", "config*"]
+
+[tool.setuptools.package-data]
+atlas = [
+    "_static/**/*",
+    "_config/*.yaml",
+    "_config/*.yml",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["."]
+filterwarnings = ["ignore::DeprecationWarning"]
