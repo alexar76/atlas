@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>ATLAS — Physical sensor map</title>
+  <meta name="description" content="Live weather, air, tide and earthquake map over GAIA physical oracles." />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem("atlas-theme");
+        if (t) document.documentElement.dataset.theme = t;
+        var p = localStorage.getItem("atlas-projection");
+        if (p === "globe" || p === "mercator") document.documentElement.dataset.projection = p;
+        else document.documentElement.dataset.projection = "globe";
+      } catch (e) {}
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link href="/assets/vendor/maplibre-gl/maplibre-gl.css" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/themes.css?v=20260806b" />
+  <link rel="stylesheet" href="/assets/atlas.css?v=20260813c" />
+</head>
+<body>
+  <div id="app" data-shell="atlas">
+    <div class="space-field" aria-hidden="true"></div>
+    <header class="top">
+      <div class="brand">
+        <span class="mark" aria-hidden="true"></span>
+        <div>
+          <h1>ATLAS</h1>
+          <p class="tag" data-i18n="shell.tag">Physical sensor mesh · LIVE relays + SIM · optional 3D globe</p>
+        </div>
+      </div>
+      <div class="hud" id="hud">
+        <span class="pill" id="status-pill" data-i18n="status.boot">boot</span>
+        <span class="stat" id="stat-stations">—</span>
+        <span class="stat" id="stat-quakes">—</span>
+        <span class="stat" id="stat-age">—</span>
+      </div>
+    </header>
+
+    <aside class="panel" id="panel">
+      <div class="panel-head">
+        <h2 data-i18n="shell.layers">Layers</h2>
+        <button type="button" class="ghost" id="btn-refresh" title="Refresh viewport" aria-label="Refresh viewport" data-i18n-title="shell.refresh" data-i18n-aria="shell.refresh">↻</button>
+      </div>
+      <div class="layers" id="layers"></div>
+      <div class="panel-head sub">
+        <h2 data-i18n="shell.inView">In view</h2>
+        <span class="hint" id="viewport-hint" data-i18n="shell.moveMap">move map to load</span>
+      </div>
+      <div class="station-list" id="station-list"></div>
+      <footer class="panel-foot">
+        <a href="https://iot.modelmarket.dev" target="_blank" rel="noopener" data-i18n="shell.gaia">GAIA gateway</a>
+        <a href="https://magic-ai-factory.com/monitor/" target="_blank" rel="noopener" data-i18n="shell.monitor">Alien Monitor</a>
+      </footer>
+    </aside>
+
+    <aside class="detail" id="detail" hidden>
+      <div class="detail-head">
+        <button type="button" class="ghost" id="detail-close" aria-label="Close" data-i18n-aria="shell.close">✕</button>
+        <div>
+          <h2 id="detail-title" data-i18n="shell.sensor">Sensor</h2>
+          <p class="detail-sub" id="detail-sub"></p>
+        </div>
+      </div>
+      <p class="detail-status" id="detail-status"></p>
+      <p class="detail-summary" id="detail-summary"></p>
+      <div class="detail-metrics" id="detail-metrics"></div>
+      <div class="detail-actions" id="detail-actions" hidden></div>
+      <div class="detail-meta" id="detail-meta"></div>
+    </aside>
+
+    <main id="map" role="application" aria-label="ATLAS sensor map" data-i18n-aria="shell.mapAria"></main>
+  </div>
+
+  <script src="/assets/vendor/maplibre-gl/maplibre-gl.js?v=5.24.0"></script>
+  <script src="/assets/i18n.js?v=20260813d"></script>
+  <script src="/assets/theme.js?v=20260813a"></script>
+  <script src="/assets/map-lib.js?v=20260813e"></script>
+  <script src="/assets/atlas.js?v=20260813f"></script>
+  <script src="/assets/assistant.js?v=20260813a"></script>
+  <script>
+    AtlasI18n.applyStatic();
+    const atlasLocale = () => AtlasI18n.locale();
+    const mapApi = AtlasMap.mount({
+      mode: "full",
+      root: document.getElementById("app"),
+      getLocale: atlasLocale,
+    });
+    AtlasAI.mount({
+      getBbox: () => {
+        if (!mapApi || !mapApi.map) return null;
+        // Same normalization as the viewport call — never ship unwrapped bounds.
+        return AtlasMapLib.normalizeBbox(mapApi.map);
+      },
+      getStationIds: () => {
+        try {
+          const list = mapApi.visibleStations && mapApi.visibleStations();
+          return list && list.length ? list.map((s) => s.id) : null;
+        } catch (_) {
+          return null;
+        }
+      },
+      getLocale: atlasLocale,
+      onActions: (actions) => mapApi.applyActions && mapApi.applyActions(actions),
+    });
+  </script>
+</body>
+</html>

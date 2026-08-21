@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ATLAS embed</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Syne:wght@700&display=swap" rel="stylesheet" />
+  <link href="/assets/vendor/maplibre-gl/maplibre-gl.css" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/themes.css" />
+  <link rel="stylesheet" href="/assets/atlas.css?v=20260813b" />
+  <style>
+    html, body, #app { height: 100%; margin: 0; overflow: hidden; }
+    body.embed .top { padding: 8px 10px; }
+    body.embed .brand h1 { font-size: 15px; }
+    body.embed .tag, body.embed .panel { display: none; }
+    body.embed #map { inset: 0; top: 42px; }
+    body.embed .hud { gap: 6px; }
+    body.embed .open-full {
+      position: absolute; right: 10px; bottom: 10px; z-index: 5;
+    }
+  </style>
+</head>
+<body class="embed">
+  <div id="app">
+    <header class="top">
+      <div class="brand">
+        <span class="mark" aria-hidden="true"></span>
+        <div>
+          <h1>ATLAS</h1>
+          <p class="tag" data-i18n="shell.liveMesh">live mesh</p>
+        </div>
+      </div>
+      <div class="hud">
+        <span class="pill" id="status-pill">…</span>
+        <span class="stat" id="stat-stations">—</span>
+      </div>
+    </header>
+    <main id="map" role="application" aria-label="ATLAS mini map" data-i18n-aria="shell.miniMapAria"></main>
+    <a class="open-full btn" id="open-full" href="/" target="_blank" rel="noopener" data-i18n="shell.openFull">Open full map ↗</a>
+  </div>
+  <script src="/assets/vendor/maplibre-gl/maplibre-gl.js"></script>
+  <script src="/assets/i18n.js?v=20260813b"></script>
+  <script src="/assets/theme.js?v=20260813a"></script>
+  <script src="/assets/map-lib.js"></script>
+  <script src="/assets/atlas.js?v=20260813d"></script>
+  <script>
+    AtlasI18n.applyStatic();
+    const atlasLocale = () => AtlasI18n.locale();
+    AtlasMap.mount({ mode: "embed", root: document.getElementById("app"), getLocale: atlasLocale });
+  </script>
+</body>
+</html>
