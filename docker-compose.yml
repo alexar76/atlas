@@ -1,0 +1,138 @@
+# ATLAS — physical sensor map over GAIA live relays.
+# Deploy with scripts/deploy_atlas.sh. By hand, from the monorepo root:
+#   python3 scripts/security/service_env.py atlas .env deploy/env/atlas.env
+#   docker compose -f atlas/docker-compose.yml --env-file .env up -d --build
+#
+# Loopback bind only — publish via nginx TLS edge (see deploy/nginx/atlas.modelmarket.dev.conf).
+
+services:
+  atlas:
+    build:
+      context: ..
+      dockerfile: atlas/Dockerfile
+    env_file:
+      # ATLAS's cut of ../.env — the operator token, the LLM key, the signing seed and
+      # ATLAS_CREDITS_ENABLED. The notes below that say `env_file: ../.env` mean this file.
+      # Required: an optional file that nothing wrote started ATLAS without all four.
+      - path: ../deploy/env/atlas.env
+        required: true
+    environment:
+      ATLAS_PORT: "9330"
+      ATLAS_PUBLIC_URL: ${ATLAS_PUBLIC_URL:-https://atlas.modelmarket.dev}
+      ATLAS_GAIA_URL: ${ATLAS_GAIA_URL:-https://iot.modelmarket.dev}
+      ATLAS_CORS_ORIGINS: ${ATLAS_CORS_ORIGINS:-https://atlas.modelmarket.dev,https://magic-ai-factory.com,https://iot.modelmarket.dev}
+      ATLAS_POLL_INTERVAL_S: ${ATLAS_POLL_INTERVAL_S:-30}
+      ATLAS_RATE_LIMIT_PER_MIN: ${ATLAS_RATE_LIMIT_PER_MIN:-180}
+      ATLAS_GAIA_CONCURRENCY: ${ATLAS_GAIA_CONCURRENCY:-4}
+      ATLAS_GAIA_TIMEOUT_S: ${ATLAS_GAIA_TIMEOUT_S:-180}
+      ATLAS_GAIA_REQUESTS_PER_MINUTE: ${ATLAS_GAIA_REQUESTS_PER_MINUTE:-72}
+      ATLAS_READING_TTL_S: ${ATLAS_READING_TTL_S:-300}
+      # USGS station history/availability is commercial evidence, not a cache.
+      # Keep it on the same durable single-writer volume (uvicorn workers=1),
+      # otherwise a rebuild would reset every station's uptime to 100%.
+      ATLAS_WATER_QUALITY_HISTORY_PATH: ${ATLAS_WATER_QUALITY_HISTORY_PATH:-/data/water_quality_history.json}
+      ATLAS_SIGNING_KEY_PATH: ${ATLAS_SIGNING_KEY_PATH:-/data/atlas_signing_key}
+      # ATLAS_SIGNING_SEED_B64 comes from `env_file: ../.env` — see the operator-token note
+      # below. Listed here with an empty default it was blanked on every deploy, so the
+      # federation identity depended on the key file on the volume surviving instead of on
+      # the seed the operator configured. (Checked before removing the line: the seed in
+      # ../.env derives the key the live node already publishes, so this changes no identity.)
+      # Hybrid ML-DSA-65 + Ed25519 for Hub federation. PQ key at
+      # ${ATLAS_SIGNING_KEY_PATH}_mldsa on atlas_data. ATLAS_PQC is an alias
+      # for ORACLE_PQC (same phase-2 rollout as GAIA / oracle-family).
+      ORACLE_PQC: ${ORACLE_PQC:-1}
+      ATLAS_PQC: ${ATLAS_PQC:-1}
+      # Charge for the capabilities the manifest already prices. Before this, every priced
+      # invoke was served for free — a price list nobody was asked to honour. Enforcement
+      # changes what existing callers get back, so it stays an explicit operator decision;
+      # the default here is on because production has it on, and a compose file that
+      # disagreed with production would be worse than one that states the choice.
+      ATLAS_PAYMENT_ENFORCED: ${ATLAS_PAYMENT_ENFORCED:-1}
+      # The free allowance every caller gets before the 402, mirroring the hub's own trial
+      # terms so an agent that discovers either service sees the same deal.
+      ATLAS_TRIAL_WINDOW: ${ATLAS_TRIAL_WINDOW:-hourly}
+      ATLAS_TRIAL_MAX_PER_CALLER: ${ATLAS_TRIAL_MAX_PER_CALLER:-5}
+      # On the mounted volume, like the signing key and the watchbox log: a ledger that a
+      # `up -d --build` wipes hands every caller a fresh free tier on every redeploy.
+      ATLAS_TRIAL_DB_PATH: ${ATLAS_TRIAL_DB_PATH:-/data/atlas_trials.db}
+      ATLAS_TRIAL_POLICY_PATH: ${ATLAS_TRIAL_POLICY_PATH:-/data/atlas_trial_policy.json}
+      # ATLAS_CREDITS_ENABLED is also absent on purpose, for the reason above: listing it
+      # with a default would mean the operator could never turn the paid rail on from
+      # `../.env`. The code defaults to off, so an unset variable is already the safe state.
+      # Prepaid accounts are the paid entrance — without them the free allowance above IS
+      # the ceiling for every buyer, which is what capped a desk selling monthly plans at
+      # five runs an hour. Mint accounts and hand out keys BEFORE switching it on.
+      # Prepaid balances are somebody else's money. On the volume for a harsher reason than
+      # the trial ledger: a rebuild here deletes the balances themselves, and a wiped
+      # account is indistinguishable from a forged key. The node refuses to boot rather
+      # than take prepaid money into an image layer.
+      ATLAS_CREDITS_DB_PATH: ${ATLAS_CREDITS_DB_PATH:-/data/atlas_credits.db}
+      # Watchbox monitoring evidence. MUST live on the mounted volume: the log is the
+      # product ("prove you were monitoring"), and a log that a `up -d --build` wipes is
+      # not evidence. atlas/data/ resolves INSIDE the image, so never default there.
+      # ATLAS_OPERATOR_TOKEN is deliberately NOT listed here. It used to be, as
+      # `${ATLAS_OPERATOR_TOKEN:-}`, and that empty default is not a default at all: an
+      # `environment:` entry OVERRIDES `env_file`, and compose interpolates `${...}` from the
+      # shell or from the project `.env` beside this file — never from `../.env`. So the
+      # 48-character token the operator had set in the monorepo `.env` was replaced by "" on
+      # every deploy, and `_operator_ok` refused EVERYONE: the watchbox registry admin path
+      # and (once it existed) credit issuance were locked out in production for months while
+      # the configuration looked correct. Left off this list, the value flows from
+      # `env_file: ../.env` as intended.
+      # Self-serve watchbox creation. Off = only the operator may create a box and hand
+      # the owner token to the buyer. On = anyone may create one and is given its owner
+      # token; bounded because every box costs a check per interval and an outbound POST.
+      ATLAS_WATCHBOX_OPEN_SIGNUP: ${ATLAS_WATCHBOX_OPEN_SIGNUP:-0}
+      ATLAS_WATCHBOX_SELF_SERVE_MAX: ${ATLAS_WATCHBOX_SELF_SERVE_MAX:-200}
+      ATLAS_MONITOR_DB_PATH: ${ATLAS_MONITOR_DB_PATH:-/data/atlas_monitor.db}
+      ATLAS_MONITOR_RETENTION_DAYS: ${ATLAS_MONITOR_RETENTION_DAYS:-1095}
+      ATLAS_WATCHBOX_DELIVERY: ${ATLAS_WATCHBOX_DELIVERY:-1}
+      ATLAS_WATCHBOX_INTERVAL_S: ${ATLAS_WATCHBOX_INTERVAL_S:-300}
+      # The watchbox registry itself was JSON inside the image too — same volume, same
+      # reason: a subscription that vanishes on redeploy cannot be monitored against.
+      ATLAS_WATCHBOX_PATH: ${ATLAS_WATCHBOX_PATH:-/data/watchboxes.json}
+      # Instrument status archive: what atlas.observability.attest@v1 attests a past
+      # window against. Same volume for the same reason as the two above — an archive
+      # that resets on `up --build` can never attest a window older than the last
+      # deploy, which is the only kind of window a claims desk asks about.
+      ATLAS_STATUS_ARCHIVE: ${ATLAS_STATUS_ARCHIVE:-1}
+      ATLAS_STATUS_ARCHIVE_PATH: ${ATLAS_STATUS_ARCHIVE_PATH:-/data/status-archive.jsonl}
+      ATLAS_STATUS_ARCHIVE_INTERVAL_S: ${ATLAS_STATUS_ARCHIVE_INTERVAL_S:-600}
+      ATLAS_STATUS_ARCHIVE_DAYS: ${ATLAS_STATUS_ARCHIVE_DAYS:-120}
+      ATLAS_FIRMS_HOTSPOT_LIMIT: ${ATLAS_FIRMS_HOTSPOT_LIMIT:-250000}
+      ATLAS_FIRMS_MAP_PIN_LIMIT: ${ATLAS_FIRMS_MAP_PIN_LIMIT:-2000}
+      # Production LLM — DeepSeek (deepseek-v4-pro). The provider keys come from
+      # `env_file: ../.env` and are NOT listed here: as `${DEEPSEEK_API_KEY:-}` they
+      # overrode that file with an empty string, and the live node ran its analyst with no
+      # provider at all — answering "offline — set DEEPSEEK_API_KEY" while a working key sat
+      # in ../.env. Same trap as the operator token; see the note below it.
+      ATLAS_LLM_PROVIDER: ${ATLAS_LLM_PROVIDER:-deepseek_api}
+      ATLAS_LLM_MODEL: ${ATLAS_LLM_MODEL:-deepseek-v4-pro}
+      ATLAS_LLM_MODEL_LIGHT: ${ATLAS_LLM_MODEL_LIGHT:-deepseek-v4-flash}
+      ATLAS_LLM_BASE_URL: ${ATLAS_LLM_BASE_URL:-https://api.deepseek.com/v1}
+      ATLAS_LLM_CONFIG: ${ATLAS_LLM_CONFIG:-/app/config/model_providers.yaml}
+      ATLAS_OLLAMA_URL: ${ATLAS_OLLAMA_URL:-http://host.docker.internal:11434}
+      ATLAS_LM_STUDIO_URL: ${ATLAS_LM_STUDIO_URL:-http://host.docker.internal:1234/v1}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "127.0.0.1:9330:9330"
+    volumes:
+      - atlas_data:/data
+    restart: unless-stopped
+    networks:
+      - default
+      - ecosystem
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9330/health"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+
+volumes:
+  atlas_data:
+
+networks:
+  ecosystem:
+    external: true

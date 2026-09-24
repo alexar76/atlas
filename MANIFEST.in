@@ -1,0 +1,11 @@
+# Explicit sdist allow-list — do not rely on ancestor .gitignore (see oracles/core).
+include LICENSE README.md pyproject.toml pytest.ini
+recursive-include atlas *.py
+recursive-include atlas/_static *
+recursive-include atlas/_config *.yaml *.yml
+recursive-include tests *.py
+recursive-include docs *
+recursive-include frontend/public *
+recursive-include config *.yaml *.yml
+recursive-include scripts *.sh
+global-exclude *.pyc __pycache__ .DS_Store
