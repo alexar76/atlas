@@ -1,0 +1,46 @@
+# ATLAS — physical sensor map (single container: API + SPA).
+# Build from monorepo root:
+#   docker compose -f atlas/docker-compose.yml up -d --build
+FROM python:3.12-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    ATLAS_HOST=0.0.0.0 \
+    ATLAS_PORT=9330
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY atlas/backend/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+COPY atlas/atlas /app/atlas
+COPY atlas/frontend/public /app/frontend/public
+COPY atlas/config/model_providers.example.yaml /app/config/model_providers.yaml
+COPY atlas/config/om_mesh_cities.yaml /app/config/om_mesh_cities.yaml
+COPY atlas/config/sc_mesh_cities.yaml /app/config/sc_mesh_cities.yaml
+COPY atlas/config/extra_sensors.yaml /app/config/extra_sensors.yaml
+
+ENV ATLAS_LLM_CONFIG=/app/config/model_providers.yaml \
+    ATLAS_LLM_PROVIDER=deepseek_api \
+    ATLAS_LLM_MODEL=deepseek-v4-pro \
+    ATLAS_LLM_MODEL_LIGHT=deepseek-v4-flash \
+    ATLAS_LLM_BASE_URL=https://api.deepseek.com/v1 \
+    PYTHONPATH=/app
+
+# Not root: the API is public and holds the federation signing seed. uid 10001 owns
+# /data, the one place ATLAS writes.
+RUN groupadd -g 10001 atlas \
+    && useradd -u 10001 -g 10001 -M -d /nonexistent -s /usr/sbin/nologin atlas \
+    && mkdir -p /data && chown 10001:10001 /data
+USER 10001:10001
+
+EXPOSE 9330
+
+HEALTHCHECK --interval=20s --timeout=5s --start-period=25s --retries=3 \
+  CMD curl -fsS "http://127.0.0.1:${ATLAS_PORT}/health" || exit 1
+
+# Single worker: in-memory aggregator + SSE fan-out must not be sharded.
+CMD ["sh", "-c", "uvicorn atlas.main:app --host ${ATLAS_HOST} --port ${ATLAS_PORT} --workers 1 --limit-concurrency 200 --timeout-keep-alive 30"]
