@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 FIELD_META: dict[str, dict[str, str]] = {
@@ -120,6 +121,44 @@ FIELD_META: dict[str, dict[str, str]] = {
         "unit": "Wh",
         "hint": "Cumulative energy register",
     },
+    "relay_on": {
+        "label": "Relay",
+        "unit": "",
+        "hint": "Whether the plug's relay is closed (the socket is powered)",
+    },
+    "price_eur_mwh": {
+        "label": "Day-ahead price",
+        "unit": "€/MWh",
+        "hint": "Exchange clearing price for the current quarter-hour; wholesale, not a tariff",
+    },
+    "price_min_24h_eur_mwh": {"label": "24 h low", "unit": "€/MWh", "hint": "Lowest price in the next 24 h"},
+    "price_mean_24h_eur_mwh": {"label": "24 h mean", "unit": "€/MWh", "hint": "Mean price over the next 24 h"},
+    "price_max_24h_eur_mwh": {"label": "24 h high", "unit": "€/MWh", "hint": "Highest price in the next 24 h"},
+    "negative_intervals_24h": {
+        "label": "Negative-price intervals",
+        "unit": "",
+        "hint": "Quarter-hours in the next 24 h at which the price is below zero",
+    },
+    "interval_start_unix": {"label": "Interval start", "unit": "", "hint": "Start of the priced interval"},
+    "horizon_end_unix": {"label": "Prices known until", "unit": "", "hint": "End of the published day-ahead horizon"},
+    "resolution_min": {"label": "Resolution", "unit": "min", "hint": "Length of one priced interval"},
+    "ndvi": {"label": "NDVI", "unit": "", "hint": "Vegetation index, −1…1: dense green vegetation is above 0.6"},
+    "ndwi": {"label": "NDWI", "unit": "", "hint": "Water index, −1…1: open water is above 0"},
+    "nbr": {"label": "NBR", "unit": "", "hint": "Normalised burn ratio: a drop between images marks a burn scar"},
+    "ndmi": {"label": "NDMI", "unit": "", "hint": "Moisture index: vegetation water content"},
+    "reflectance_green": {"label": "Green reflectance", "unit": "", "hint": "Sentinel-2 B03 surface reflectance"},
+    "reflectance_red": {"label": "Red reflectance", "unit": "", "hint": "Sentinel-2 B04 surface reflectance"},
+    "reflectance_nir": {"label": "NIR reflectance", "unit": "", "hint": "Sentinel-2 B08 surface reflectance"},
+    "reflectance_swir16": {"label": "SWIR 1.6 µm reflectance", "unit": "", "hint": "Sentinel-2 B11 surface reflectance"},
+    "reflectance_swir22": {"label": "SWIR 2.2 µm reflectance", "unit": "", "hint": "Sentinel-2 B12 surface reflectance"},
+    "scene_class": {
+        "label": "Scene class",
+        "unit": "",
+        "hint": "Sentinel-2 SCL at the pixel: 4 vegetation, 5 bare soil, 6 water, 7 unclassified, 11 snow",
+    },
+    "scene_cloud_pct": {"label": "Scene cloud cover", "unit": "%", "hint": "Cloud cover of the whole Sentinel-2 tile"},
+    "observation_unix": {"label": "Observed", "unit": "", "hint": "When the satellite took the image"},
+    "observation_age_days": {"label": "Image age", "unit": "days", "hint": "Days since the satellite took the image"},
     "brightness_k": {
         "label": "Brightness",
         "unit": "K",
@@ -327,6 +366,24 @@ def _fmt_num(value: Any, *, digits: int = 1) -> str | None:
     return text or "0"
 
 
+_INDEX_FIELDS = frozenset({"ndvi", "ndwi", "nbr", "ndmi"})
+
+
+def _fmt_unix(value: Any) -> str | None:
+    """``2026-10-16 07:00 UTC`` for an epoch-seconds field, not a ten-digit number."""
+    try:
+        return time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(float(value)))
+    except (TypeError, ValueError, OverflowError, OSError):
+        return None
+
+
+def _fmt_relay(value: Any) -> str | None:
+    try:
+        return "on" if float(value) >= 0.5 else "off"
+    except (TypeError, ValueError):
+        return None
+
+
 def headline(layer: str, values: dict[str, Any]) -> str:
     if not values:
         return "Waiting for reading…"
@@ -462,6 +519,18 @@ def headline(layer: str, values: dict[str, Any]) -> str:
         if layer == "sea_ice":
             ice = _fmt_num(values.get("sea_ice_concentration_pct"), digits=1)
             return f"Sea ice {ice}%" if ice is not None else "Sea ice concentration"
+        if layer == "power_price":
+            price = _fmt_num(values.get("price_eur_mwh"), digits=2)
+            return f"{price} €/MWh" if price is not None else "Day-ahead price"
+        if layer == "imagery":
+            ndvi = _fmt_num(values.get("ndvi"), digits=2)
+            return f"NDVI {ndvi}" if ndvi is not None else "Sentinel-2"
+        if layer == "actuator":
+            relay = _fmt_relay(values.get("relay_on"))
+            pw = _fmt_num(values.get("power_w"), digits=0)
+            if relay is None:
+                return "Actuator"
+            return f"Relay {relay} · {pw} W" if pw is not None else f"Relay {relay}"
         if layer == "land_temperature":
             temp = _fmt_num(values.get("land_surface_temperature_c"), digits=1)
             return f"Land surface {temp} °C" if temp is not None else "Land temperature"
@@ -481,7 +550,20 @@ def metric_rows(values: dict[str, Any], *, layer: str = "") -> list[dict[str, st
         )
         if key in {"magnitude", "depth_km"}:
             digits = 1 if key == "magnitude" else 1
-        formatted = _fmt_num(raw, digits=digits)
+        if key.startswith("reflectance_"):
+            digits = 4  # surface reflectance is mostly 0.01–0.4
+        elif key in _INDEX_FIELDS:
+            digits = 3
+        elif key.startswith("price_"):
+            digits = 2
+        elif key in {"scene_class", "negative_intervals_24h", "resolution_min"}:
+            digits = 0
+        if key.endswith("_unix"):
+            formatted = _fmt_unix(raw)
+        elif key == "relay_on":
+            formatted = _fmt_relay(raw)
+        else:
+            formatted = _fmt_num(raw, digits=digits)
         if formatted is None:
             formatted = str(raw)
         unit = meta.get("unit") or ""

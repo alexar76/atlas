@@ -149,3 +149,28 @@ def test_coord_place_reads_the_hemispheres_and_refuses_nonsense():
     assert coord_place({"lat": 999.0, "lon": 0.0}) is None
     assert coord_place({"lat": None, "lon": None}) is None
     assert coord_place({}) is None
+
+
+def test_headline_power_price_imagery_actuator():
+    assert headline("power_price", {"price_eur_mwh": 289.07}) == "289.07 €/MWh"
+    assert headline("power_price", {"resolution_min": 15}) == "Day-ahead price"
+    assert headline("imagery", {"ndvi": 0.5799, "ndwi": -0.59}) == "NDVI 0.58"
+    assert headline("imagery", {"scene_class": 9}) == "Sentinel-2"
+    assert headline("actuator", {"relay_on": 1.0, "power_w": 1497.2}) == "Relay on · 1497 W"
+    assert headline("actuator", {"relay_on": 0.0, "power_w": 0.4}) == "Relay off · 0 W"
+
+
+def test_metric_rows_new_layer_precision():
+    rows = {r["key"]: r for r in metric_rows({
+        "reflectance_green": 0.0632, "ndvi": 0.57991, "price_eur_mwh": 289.071,
+        "observation_unix": 1791800770, "relay_on": 1.0, "scene_class": 4.0,
+        "scene_cloud_pct": 9.4036,
+    })}
+    assert rows["reflectance_green"]["value"] == "0.0632"  # was "0.1"
+    assert rows["ndvi"]["value"] == "0.58"
+    assert rows["price_eur_mwh"]["value"] == "289.07 €/MWh"
+    assert rows["observation_unix"]["value"] == "2026-10-12 10:26 UTC"
+    assert rows["relay_on"]["value"] == "on"
+    assert rows["scene_class"]["value"] == "4"
+    assert rows["scene_cloud_pct"]["value"] == "9.4 %"
+    assert rows["ndvi"]["label"] == "NDVI" and "vegetation" in rows["ndvi"]["hint"].lower()

@@ -1565,6 +1565,70 @@ for _lst_id, _lst_lat, _lst_lon, _lst_place in (
     }
 
 # ``label`` = EN default; ``labels`` = EN/RU/ES/FR/ZH for map UI + landings.
+# ── Day-ahead electricity prices: one GAIA SMARD relay per bidding zone ──────
+# Mirrors gaia/gaia/devices/live_power.py SMARD_ZONES (tests/test_new_layers.py checks
+# the two agree when GAIA is importable). A price belongs to the whole zone; the pin
+# sits near its centre.
+ATLAS_SMARD_ZONES: tuple[tuple[str, str, float, float], ...] = (
+    ("DE-LU", "Germany / Luxembourg", 51.17, 10.45),
+    ("AT", "Austria", 47.59, 14.14),
+    ("BE", "Belgium", 50.64, 4.67),
+    ("NO2", "Norway NO2 (south-west)", 58.97, 6.90),
+    ("DK1", "Denmark DK1 (west)", 56.20, 9.00),
+    ("DK2", "Denmark DK2 (east)", 55.50, 11.90),
+    ("FR", "France", 46.60, 2.40),
+    ("IT-North", "Italy North", 45.50, 9.80),
+    ("NL", "Netherlands", 52.20, 5.50),
+    ("PL", "Poland", 52.00, 19.40),
+    ("SE4", "Sweden SE4 (south)", 56.00, 13.60),
+    ("CH", "Switzerland", 46.80, 8.20),
+    ("SI", "Slovenia", 46.10, 14.80),
+    ("CZ", "Czechia", 49.80, 15.50),
+    ("HU", "Hungary", 47.20, 19.40),
+)
+for _zone, _name, _lat, _lon in ATLAS_SMARD_ZONES:
+    STATION_CATALOG[f"smard-price-{_zone.lower()}"] = {
+        "layer": "power_price", "label": f"Power price {_zone}",
+        "capability": "gaia.power.price.read@v1", "lat": _lat, "lon": _lon,
+        "place": f"{_name} bidding zone (SMARD day-ahead · CC BY 4.0; wholesale, not a tariff)",
+        "kind": "point", "mode": "live",
+    }
+
+# ── Sentinel-2 showcase pins: ONE GAIA device (s2-l2a-01) read at each pin ──────
+# `gaia_device` names the fleet device the pin is read through, `query` the input that
+# places the read; `min_ttl_s` keeps these expensive reads (STAC search + COG tiles,
+# 4-14 s) to a few a day — scenes arrive every 2-5 days anyway.
+_S2_PINS: tuple[tuple[str, float, float, str, int], ...] = (
+    ("s2-tempelhof", 52.4730, 13.4020, "Tempelhofer Feld, Berlin — grassland", 60),
+    ("s2-wannsee", 52.4318, 13.1730, "Wannsee, Berlin — lake", 60),
+    ("s2-grandcanyon", 36.1000, -112.1100, "Grand Canyon, Arizona — bare rock", 60),
+    ("s2-amazon", -3.4653, -62.2159, "Amazon rainforest, Brazil — forest", 120),
+    ("s2-sahara", 23.4162, 25.6628, "Eastern Sahara, Egypt — desert", 60),
+)
+for _pid, _lat, _lon, _place, _age in _S2_PINS:
+    STATION_CATALOG[_pid] = {
+        "layer": "imagery", "label": f"Sentinel-2 · {_place.split(' — ')[0]}",
+        "capability": "gaia.imagery.read@v1", "lat": _lat, "lon": _lon,
+        "place": f"{_place} (Copernicus Sentinel-2 L2A; latest cloud-free pixel)",
+        "kind": "point", "mode": "live",
+        "gaia_device": "s2-l2a-01",
+        "query": {"latitude": _lat, "longitude": _lon, "max_age_days": _age},
+        "min_ttl_s": 6 * 3600,
+    }
+
+# ── Actuators: the demo plug GAIA switches when GAIA_ACTUATION_ENABLED=1 ────────
+# Read like any meter (gaia.energy.read@v1); switched with gaia.actuate@v1, which is
+# paid only for the effect its own meter then measures.
+STATION_CATALOG["plug-sim-01"] = {
+    "layer": "actuator", "label": "Demo heater plug",
+    "capability": "gaia.energy.read@v1",
+    "lat": _DEMO_LAT - 0.004, "lon": _DEMO_LON + 0.010,
+    "place": "GAIA demo campus (sim) — switch it with gaia.actuate@v1 "
+             "($0.05, paid only for the measured effect)",
+    "kind": "point", "mode": "sim",
+}
+
+
 LAYER_META: dict[str, dict[str, Any]] = {
     "weather": {
         "color": "#3dd6c6",
@@ -1920,6 +1984,30 @@ LAYER_META: dict[str, dict[str, Any]] = {
         "color": "#facc15",
         "label": "UV forecast",
         "labels": {"en": "UV forecast"},
+    },
+    "power_price": {
+        "color": "#eab308",
+        "label": "Power price",
+        "labels": {
+            "en": "Power price", "ru": "Цена электроэнергии", "es": "Precio de la electricidad",
+            "fr": "Prix de l'électricité", "zh": "电价",
+        },
+    },
+    "imagery": {
+        "color": "#10b981",
+        "label": "Satellite imagery",
+        "labels": {
+            "en": "Satellite imagery", "ru": "Спутниковые снимки", "es": "Imágenes satelitales",
+            "fr": "Imagerie satellite", "zh": "卫星影像",
+        },
+    },
+    "actuator": {
+        "color": "#f43f5e",
+        "label": "Actuators",
+        "labels": {
+            "en": "Actuators", "ru": "Исполнительные устройства", "es": "Actuadores",
+            "fr": "Actionneurs", "zh": "执行器",
+        },
     },
 }
 

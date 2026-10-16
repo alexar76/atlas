@@ -585,12 +585,24 @@ def parse_fleet_devices(fleet: dict[str, Any] | None) -> dict[str, dict[str, Any
     return devices_by_id
 
 
+def gaia_device_id(pin_id: str) -> str:
+    """The GAIA fleet device a pin is read through: itself, or the shared device a
+    catalog entry names in `gaia_device` (Sentinel-2 pins all read s2-l2a-01)."""
+    meta = STATION_CATALOG.get(pin_id) or {}
+    return str(meta.get("gaia_device") or pin_id)
+
+
+def fleet_device_for(pin_id: str, devices_by_id: dict[str, dict[str, Any]]) -> dict[str, Any] | None:
+    return devices_by_id.get(pin_id) or devices_by_id.get(gaia_device_id(pin_id))
+
+
 def wanted_station_ids(devices_by_id: dict[str, dict[str, Any]]) -> list[str]:
     if devices_by_id:
         return [
             did
             for did, meta in STATION_CATALOG.items()
-            if did in devices_by_id or meta["layer"] in CATALOG_EVENT_LAYERS
+            if did in devices_by_id or gaia_device_id(did) in devices_by_id
+            or meta["layer"] in CATALOG_EVENT_LAYERS
         ]
     return list(STATION_CATALOG.keys())
 
@@ -675,7 +687,7 @@ async def fetch_station_reading(
     meta = STATION_CATALOG.get(device_id)
     if not meta:
         raise KeyError(device_id)
-    fleet_dev = fleet_by_id.get(device_id) or {}
+    fleet_dev = fleet_device_for(device_id, fleet_by_id) or {}
     online = bool(fleet_dev.get("online", True)) if fleet_dev else True
     source = fleet_dev.get("source")
     mode, live = resolve_mode(
@@ -707,23 +719,27 @@ async def fetch_station_reading(
         else:
             # Count + headline only — first packet discarded for map pins.
             extra["page_size"] = 1
+    elif isinstance(meta.get("query"), dict):
+        # A pin read through a shared device at the pin's own place (Sentinel-2).
+        extra.update(meta["query"])
     elif meta["layer"] == "water_quality" and geo_bbox is not None:
         west, south, east, north = geo_bbox
         extra.update({
             "west": west, "south": south, "east": east, "north": north,
             "limit": 10_000,
         })
+    gaia_id = gaia_device_id(device_id)
     if extra:
         reading = None
         attempts = 4 if meta["layer"] == "fire" else 1
         for attempt in range(attempts):
-            reading = await invoke(str(meta["capability"]), device_id, extra_input=extra)
+            reading = await invoke(str(meta["capability"]), gaia_id, extra_input=extra)
             if isinstance(reading, dict):
                 break
             if attempt + 1 < attempts:
                 await asyncio.sleep(min(4.0, 0.4 * (2 ** attempt)))
     else:
-        reading = await invoke(str(meta["capability"]), device_id)
+        reading = await invoke(str(meta["capability"]), gaia_id)
     if not isinstance(reading, dict):
         # Timeout / 429 / transport miss — do not fabricate an empty parent that
         # ReadingStore would otherwise paint as offline and blank the map pin.

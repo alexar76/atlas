@@ -8,7 +8,7 @@
 
 颜色标识图层，不表示严重程度或传感器健康状态。部分相关图层有意共用颜色；请通过图层键和筛选器区分。LIVE/SIM 状态与可用性另行显示。
 
-当前目录定义了 46 个图层和 934 个已配置设备。事件和密集数据源可在运行时创建更多读数点。
+当前目录定义了 49 个图层和 955 个已配置设备。事件和密集数据源可在运行时创建更多读数点。
 
 | 颜色 | 图层键 | 表示内容 | device_id 示例 |
 |---|---|---|---|
@@ -58,3 +58,6 @@
 | <span style="color:#d97706">●</span> `#d97706` | `drought` | 干旱 | `usdm-01` |
 | <span style="color:#0284c7">●</span> `#0284c7` | `reservoir` | Reservoirs | `usace-keys-01`, `usace-pine-01`, `usace-deni-01`, `usace-huds-01` |
 | <span style="color:#facc15">●</span> `#facc15` | `uv` | UV forecast | `epa-uv-01` |
+| <span style="color:#eab308">●</span> `#eab308` | `power_price` | 电价 | `smard-price-de-lu`, `smard-price-at`, `smard-price-be`, `smard-price-no2` +11 |
+| <span style="color:#10b981">●</span> `#10b981` | `imagery` | 卫星影像 | `s2-tempelhof`, `s2-wannsee`, `s2-grandcanyon`, `s2-amazon` +1 |
+| <span style="color:#f43f5e">●</span> `#f43f5e` | `actuator` | 执行器 | `plug-sim-01` |

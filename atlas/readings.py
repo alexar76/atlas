@@ -138,13 +138,16 @@ class ReadingStore:
         async def one(device_id: str) -> dict[str, Any] | None:
             if device_id not in STATION_CATALOG:
                 return None
+            # A pin may set its own floor (min_ttl_s): an expensive read whose upstream
+            # changes slowly (Sentinel-2) is not repeated even by a forced refresh.
+            floor = float(STATION_CATALOG[device_id].get("min_ttl_s") or 0.0)
             age = self.age(device_id)
-            if not force and age is not None and age < ttl:
+            if age is not None and ((not force and age < ttl) or age < floor):
                 return self.get_station(device_id)
 
             async with self.lock_for(device_id):
                 age = self.age(device_id)
-                if not force and age is not None and age < ttl:
+                if age is not None and ((not force and age < ttl) or age < floor):
                     return self.get_station(device_id)
                 try:
                     station = await fetch(device_id)

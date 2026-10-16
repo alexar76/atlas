@@ -726,7 +726,8 @@ class Aggregator:
         devices_by_id = fleet_mod.parse_fleet_devices(fleet if isinstance(fleet, dict) else None)
         self._fleet_by_id = devices_by_id
         wanted_ids = fleet_mod.wanted_station_ids(devices_by_id)
-        stations = [self._pin_from_catalog(did, devices_by_id.get(did)) for did in wanted_ids]
+        stations = [self._pin_from_catalog(did, fleet_mod.fleet_device_for(did, devices_by_id))
+                    for did in wanted_ids]
 
         event_ids = [
             did for did in wanted_ids

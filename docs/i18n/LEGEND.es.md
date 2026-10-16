@@ -8,7 +8,7 @@ Esta leyenda se genera desde `atlas.stations.LAYER_META` y `STATION_CATALOG`; no
 
 El color identifica la capa, no la gravedad ni la salud del sensor. Algunas capas relacionadas comparten color intencionadamente; se distinguen por la clave y el filtro de capa. Los estados LIVE/SIM y la disponibilidad se muestran por separado.
 
-El catálogo define actualmente 46 capas y 934 dispositivos configurados. Las fuentes densas y de eventos pueden crear puntos de lectura adicionales en ejecución.
+El catálogo define actualmente 49 capas y 955 dispositivos configurados. Las fuentes densas y de eventos pueden crear puntos de lectura adicionales en ejecución.
 
 | Color | Clave de capa | Qué representa | Ejemplos de device_id |
 |---|---|---|---|
@@ -58,3 +58,6 @@ El catálogo define actualmente 46 capas y 934 dispositivos configurados. Las fu
 | <span style="color:#d97706">●</span> `#d97706` | `drought` | Sequía | `usdm-01` |
 | <span style="color:#0284c7">●</span> `#0284c7` | `reservoir` | Reservoirs | `usace-keys-01`, `usace-pine-01`, `usace-deni-01`, `usace-huds-01` |
 | <span style="color:#facc15">●</span> `#facc15` | `uv` | UV forecast | `epa-uv-01` |
+| <span style="color:#eab308">●</span> `#eab308` | `power_price` | Precio de la electricidad | `smard-price-de-lu`, `smard-price-at`, `smard-price-be`, `smard-price-no2` +11 |
+| <span style="color:#10b981">●</span> `#10b981` | `imagery` | Imágenes satelitales | `s2-tempelhof`, `s2-wannsee`, `s2-grandcanyon`, `s2-amazon` +1 |
+| <span style="color:#f43f5e">●</span> `#f43f5e` | `actuator` | Actuadores | `plug-sim-01` |

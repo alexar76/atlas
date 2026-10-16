@@ -8,7 +8,7 @@ Cette légende est générée depuis `atlas.stations.LAYER_META` et `STATION_CAT
 
 La couleur identifie la couche, pas la gravité ni l’état du capteur. Certaines couches liées partagent volontairement une couleur ; la clé et le filtre de couche les distinguent. Les états LIVE/SIM et la disponibilité sont affichés séparément.
 
-Le catalogue définit actuellement 46 couches et 934 appareils configurés. Les flux denses et événementiels peuvent créer des points de lecture supplémentaires à l’exécution.
+Le catalogue définit actuellement 49 couches et 955 appareils configurés. Les flux denses et événementiels peuvent créer des points de lecture supplémentaires à l’exécution.
 
 | Couleur | Clé de couche | Signification | Exemples de device_id |
 |---|---|---|---|
@@ -58,3 +58,6 @@ Le catalogue définit actuellement 46 couches et 934 appareils configurés. Les 
 | <span style="color:#d97706">●</span> `#d97706` | `drought` | Sécheresse | `usdm-01` |
 | <span style="color:#0284c7">●</span> `#0284c7` | `reservoir` | Reservoirs | `usace-keys-01`, `usace-pine-01`, `usace-deni-01`, `usace-huds-01` |
 | <span style="color:#facc15">●</span> `#facc15` | `uv` | UV forecast | `epa-uv-01` |
+| <span style="color:#eab308">●</span> `#eab308` | `power_price` | Prix de l'électricité | `smard-price-de-lu`, `smard-price-at`, `smard-price-be`, `smard-price-no2` +11 |
+| <span style="color:#10b981">●</span> `#10b981` | `imagery` | Imagerie satellite | `s2-tempelhof`, `s2-wannsee`, `s2-grandcanyon`, `s2-amazon` +1 |
+| <span style="color:#f43f5e">●</span> `#f43f5e` | `actuator` | Actionneurs | `plug-sim-01` |

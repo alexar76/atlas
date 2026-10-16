@@ -8,7 +8,7 @@ This legend is generated from `atlas.stations.LAYER_META` and `STATION_CATALOG`;
 
 Colour identifies the layer, not severity or sensor health. Some related layers intentionally share a colour; use the layer key and filter to distinguish them. LIVE/SIM state and availability are shown separately.
 
-The catalog currently defines 46 layers and 934 configured devices. Event and dense feeds may create additional reading points at runtime.
+The catalog currently defines 49 layers and 955 configured devices. Event and dense feeds may create additional reading points at runtime.
 
 | Colour | Layer key | Meaning | Example device IDs |
 |---|---|---|---|
@@ -58,3 +58,6 @@ The catalog currently defines 46 layers and 934 configured devices. Event and de
 | <span style="color:#d97706">●</span> `#d97706` | `drought` | Drought | `usdm-01` |
 | <span style="color:#0284c7">●</span> `#0284c7` | `reservoir` | Reservoirs | `usace-keys-01`, `usace-pine-01`, `usace-deni-01`, `usace-huds-01` |
 | <span style="color:#facc15">●</span> `#facc15` | `uv` | UV forecast | `epa-uv-01` |
+| <span style="color:#eab308">●</span> `#eab308` | `power_price` | Power price | `smard-price-de-lu`, `smard-price-at`, `smard-price-be`, `smard-price-no2` +11 |
+| <span style="color:#10b981">●</span> `#10b981` | `imagery` | Satellite imagery | `s2-tempelhof`, `s2-wannsee`, `s2-grandcanyon`, `s2-amazon` +1 |
+| <span style="color:#f43f5e">●</span> `#f43f5e` | `actuator` | Actuators | `plug-sim-01` |
