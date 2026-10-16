@@ -32,6 +32,12 @@ class Settings(BaseSettings):
     # Upstream GAIA gateway (free demo invokes — no escrow needed on public edge).
     gaia_url: str = "https://iot.modelmarket.dev"
     gaia_product_id: str = "gaia.gateway"
+    # GAIA's ORACLE_PAID_TIER_SECRET, sent as X-AIMarket-Paid-Tier. Once GAIA's price gate is
+    # on (oracle_core.price_gate), a priced reading goes only to a call a trusted hub signed or
+    # to a caller the operator nominated with this secret, and ATLAS reads GAIA directly.
+    # Empty sends nothing, which is what ATLAS did before. A secret: it comes from
+    # deploy/env/atlas.env (the ATLAS_ cut of ../.env), never from docker-compose.yml.
+    gaia_paid_tier_secret: str = ""
     # FIRMS full-CSV parse regularly exceeds 8s; keep other reads snappy via
     # concurrency, but allow slow live relays (fire/radiation) to finish.
     # Ceiling only — GAIA's own edge cuts at 120s, so waiting longer than that

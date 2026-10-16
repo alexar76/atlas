@@ -103,11 +103,13 @@ class GaiaClient:
             for key, value in extra_input.items():
                 if value is not None:
                     payload["input"][key] = value
+        secret = (self.settings.gaia_paid_tier_secret or "").strip()
+        headers = {"X-AIMarket-Paid-Tier": secret} if secret else None
         retries = max(0, int(self.settings.gaia_max_retries))
         for attempt in range(retries + 1):
             try:
                 await self._pace()
-                r = await self._client.post("/ai-market/v2/invoke", json=payload)
+                r = await self._client.post("/ai-market/v2/invoke", json=payload, headers=headers)
                 if (r.status_code == 429 or r.status_code >= 500) and attempt < retries:
                     await asyncio.sleep(self._retry_delay(attempt, r))
                     continue

@@ -72,3 +72,24 @@ async def test_invoke_stops_after_configured_429_retries():
 
     assert result is None
     assert calls == 3
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("secret, sent", [("", None), ("atlas-reads-gaia", "atlas-reads-gaia")])
+async def test_the_paid_tier_secret_rides_on_every_invoke(secret, sent):
+    """GAIA's price gate serves a priced reading to ATLAS only with GAIA's paid-tier secret."""
+    seen: list[str | None] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.headers.get("x-aimarket-paid-tier"))
+        return httpx.Response(200, json={"ok": True, "output": {"reading": {}}})
+
+    settings = Settings(gaia_url="https://gaia.test", gaia_requests_per_minute=1_000_000_000,
+                        gaia_paid_tier_secret=secret)
+    client = GaiaClient(settings)
+    client.raw = httpx.AsyncClient(base_url=settings.gaia_url, transport=httpx.MockTransport(handler))
+    try:
+        assert await client.invoke("gaia.weather.read@v1", "ws-01") == {"reading": {}}
+    finally:
+        await client.close()
+    assert seen == [sent]
