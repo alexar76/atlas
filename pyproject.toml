@@ -8,7 +8,7 @@ name = "aimarket-atlas"
 # Bumped because the tree diverged from the published 0.1.2 wheel: `pip install
 # aimarket-atlas==0.1.2` served code this tree had already moved past, at the same version
 # string, so every fix in it was unpublishable and unreachable.
-version = "0.3.0"
+version = "0.3.1"
 description = "ATLAS — planetary physical-sensor map over GAIA relays (LIVE/SIM pins + Analyst)"
 readme = "README.md"
 license = "MIT"
