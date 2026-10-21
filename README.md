@@ -9,7 +9,7 @@
 
 <!-- aicom-readme-badges -->
 <p align="center">
-  <a href="https://github.com/alexar76/atlas/actions/workflows/ci.yml"><img src="https://raw.githubusercontent.com/alexar76/atlas/refs/heads/main/docs/badges/ci.svg" alt="CI" /></a>
+  <a href="https://github.com/alexar76/atlas/actions/workflows/ci.yml"><img src="https://github.com/alexar76/atlas/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="https://github.com/alexar76/atlas/actions/workflows/pages.yml"><img src="https://github.com/alexar76/atlas/actions/workflows/pages.yml/badge.svg" alt="Pages deploy" /></a>
   <a href="https://atlas.modelmarket.dev/"><img src="https://raw.githubusercontent.com/alexar76/atlas/refs/heads/main/docs/badges/demo.svg" alt="Live demo status" /></a>
   <a href="https://alexar76.github.io/atlas/"><img src="https://raw.githubusercontent.com/alexar76/atlas/refs/heads/main/docs/badges/landing.svg" alt="Landing" /></a>
