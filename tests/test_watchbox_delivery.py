@@ -126,9 +126,9 @@ def _public_receivers(monkeypatch, request):
         return
 
     async def _public(url):
-        return ""
+        return "", url, {}, {}
 
-    monkeypatch.setattr(delivery_mod, "_non_public_resolution", _public)
+    monkeypatch.setattr(delivery_mod, "_delivery_target", _public)
 
 
 class TestDelivery:
@@ -152,6 +152,67 @@ class TestDelivery:
         assert sink == []
         attempts = store.checks("wb-test")[0]["deliveries"]
         assert "non-public" in (attempts[0]["error"] or "")
+
+    @pytest.mark.asyncio
+    @pytest.mark.real_resolution
+    async def test_the_post_goes_to_the_checked_address_with_the_name_in_host_and_sni(
+        self, tmp_path, monkeypatch
+    ):
+        """Posting by name let httpx resolve it again after the check (DNS rebinding)."""
+        import socket
+
+        async def fake_getaddrinfo(self, host, port, *a, **k):
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", port))]
+
+        monkeypatch.setattr(type(asyncio.get_event_loop_policy().get_event_loop()), "getaddrinfo",
+                            fake_getaddrinfo, raising=False)
+        monkeypatch.setattr(asyncio.AbstractEventLoop, "getaddrinfo", fake_getaddrinfo, raising=False)
+        sink: list[dict] = []
+
+        class _PinClient(_FakeClient):
+            async def post(self, url, content=None, headers=None, extensions=None):
+                self._sink.append({"url": url, "headers": dict(headers or {}), "extensions": extensions})
+                return _Resp(200)
+
+        store = mlog.MonitorLog(tmp_path / "log.db")
+        loop = delivery_mod.DeliveryLoop(evaluate=lambda r: _result(), signer=_FakeSigner(),
+                                         interval_s=3600, store=store,
+                                         client_factory=lambda: _PinClient([200], sink))
+        await loop.check_and_deliver(_wb(webhook_url="https://receiver.example.com:8443/hook?x=1"))
+        assert sink[0]["url"] == "https://93.184.216.34:8443/hook?x=1"
+        assert sink[0]["headers"]["Host"] == "receiver.example.com:8443"
+        assert sink[0]["extensions"] == {"sni_hostname": "receiver.example.com"}
+
+    @pytest.mark.asyncio
+    @pytest.mark.real_resolution
+    async def test_a_name_that_rebinds_between_retries_is_not_posted_to_again(self, tmp_path, monkeypatch):
+        """Public for the first attempt, 127.0.0.1 for the retry: the retry is refused."""
+        import socket
+
+        answers = iter(["93.184.216.34", "127.0.0.1"])
+
+        async def fake_getaddrinfo(self, host, port, *a, **k):
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (next(answers), port))]
+
+        monkeypatch.setattr(type(asyncio.get_event_loop_policy().get_event_loop()), "getaddrinfo",
+                            fake_getaddrinfo, raising=False)
+        monkeypatch.setattr(asyncio.AbstractEventLoop, "getaddrinfo", fake_getaddrinfo, raising=False)
+        monkeypatch.setattr(delivery_mod, "BACKOFF_BASE_S", 0.0)
+        sink: list[dict] = []
+
+        class _PinClient(_FakeClient):
+            async def post(self, url, content=None, headers=None, extensions=None):
+                self._sink.append({"url": url})
+                return _Resp(503)
+
+        store = mlog.MonitorLog(tmp_path / "log.db")
+        loop = delivery_mod.DeliveryLoop(evaluate=lambda r: _result(), signer=_FakeSigner(),
+                                         interval_s=3600, store=store,
+                                         client_factory=lambda: _PinClient([], sink))
+        await loop.check_and_deliver(_wb(webhook_url="https://rebind.example.com/hook"))
+        assert [s["url"] for s in sink] == ["https://93.184.216.34/hook"]
+        attempts = store.checks("wb-test")[0]["deliveries"]
+        assert "non-public" in (attempts[-1]["error"] or "")
 
     @pytest.mark.asyncio
     async def test_check_is_logged_and_delivered(self, tmp_path):

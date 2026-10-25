@@ -16,7 +16,8 @@ DESIGN NOTES THAT MATTER
   unbounded retry loop against a customer endpoint is an outage amplifier, and silent
   retries make a delivery log useless for proving notice.
 * Outbound requests are SSRF-guarded at creation (`https://` only, no loopback), and the
-  loop re-validates before each POST because a stored row outlives the code that wrote it.
+  loop re-validates before each POST because a stored row outlives the code that wrote it,
+  then posts to the address it checked, never to the name again.
 """
 
 from __future__ import annotations
@@ -32,7 +33,7 @@ from typing import Any
 
 import ipaddress
 import socket
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 
@@ -51,18 +52,50 @@ def _is_public(addr: str) -> bool:
     return ip.is_global and not ip.is_multicast
 
 
-async def _non_public_resolution(url: str) -> str:
-    """Why the webhook host must not be contacted, or "" when every address is public."""
-    host = urlsplit(url).hostname or ""
+async def _delivery_target(url: str) -> tuple[str, str, dict[str, str], dict[str, str]]:
+    """How to POST this webhook: ``(refusal, target_url, headers, extensions)``; a non-empty
+    refusal says why the host must not be contacted.
+
+    The POST goes to the address that passed, not to the name. Posting by name let httpx
+    resolve it again, and a name that answers public for the check and 127.0.0.1 a moment
+    later (or by the next of five retries) was posted to: DNS rebinding, the class of Vulnetix
+    GCVE-110-PYPI-2026-021946. The URL carries the checked IP, ``Host`` the name, and
+    ``sni_hostname`` the name too, so the certificate is still verified against it.
+    """
+    parts = urlsplit(url)
+    host = parts.hostname or ""
     if not host:
-        return "webhook_url has no host"
+        return "webhook_url has no host", "", {}, {}
     try:
-        infos = await asyncio.get_running_loop().getaddrinfo(host, 443, type=socket.SOCK_STREAM)
-    except OSError as exc:
-        return f"webhook host does not resolve ({exc.__class__.__name__})"
-    addrs = {info[4][0] for info in infos}
-    bad = sorted(a for a in addrs if not _is_public(a))
-    return f"webhook host resolves to a non-public address ({bad[0]})" if bad else ""
+        literal = ipaddress.ip_address(host)
+    except ValueError:
+        literal = None
+    if literal is not None:
+        if not _is_public(host):
+            return f"webhook host is a non-public address ({host})", "", {}, {}
+        return "", url, {}, {}
+    try:
+        # Host and SNI carry the ASCII form; httpx cannot put a Unicode name in a header.
+        ascii_host = host.encode("idna").decode("ascii")
+    except UnicodeError:
+        return "webhook host is not a valid name", "", {}, {}
+    port = parts.port or 443
+    try:
+        infos = await asyncio.get_running_loop().getaddrinfo(host, port, type=socket.SOCK_STREAM)
+    except (OSError, UnicodeError) as exc:
+        return f"webhook host does not resolve ({exc.__class__.__name__})", "", {}, {}
+    # The resolver's own order, which puts the family this host can reach first.
+    addrs = list(dict.fromkeys(info[4][0] for info in infos))
+    bad = [a for a in addrs if not _is_public(a.split("%", 1)[0])]
+    if bad or not addrs:
+        return f"webhook host resolves to a non-public address ({bad[0] if bad else 'none'})", "", {}, {}
+    pinned = f"[{addrs[0]}]" if ":" in addrs[0] else addrs[0]
+    host_header = ascii_host
+    if parts.port:
+        pinned = f"{pinned}:{parts.port}"
+        host_header = f"{ascii_host}:{parts.port}"
+    target = urlunsplit((parts.scheme, pinned, parts.path, parts.query, ""))
+    return "", target, {"Host": host_header}, {"sni_hostname": ascii_host}
 
 from . import monitor_log, watchboxes as watchbox_mod
 from .geo import utc_now
@@ -240,16 +273,6 @@ class DeliveryLoop:
         if secret:
             headers["x-atlas-signature"] = sign_body(secret, body)
 
-        refusal = await _non_public_resolution(url)
-        if refusal:
-            # The validator checks literals only; a NAME is resolved here, at delivery,
-            # so a webhook host that points at 127.0.0.1 or the metadata endpoint is refused.
-            self.store.record_delivery(
-                check_id=check_id, attempt=0, status_code=None,
-                error=f"refusing to deliver: {refusal}", delivered=False,
-            )
-            return
-
         for attempt in range(1, MAX_ATTEMPTS + 1):
             if self._stopping.is_set():
                 self.store.record_delivery(
@@ -257,9 +280,23 @@ class DeliveryLoop:
                     error="shutting down before delivery", delivered=False,
                 )
                 return
+            # The validator checks literals only; a NAME is resolved here, at every attempt,
+            # and the POST goes to the address that passed, so a webhook host that points at
+            # 127.0.0.1 or the metadata endpoint, now or by a later retry, is refused.
+            refusal, target, pin_headers, extensions = await _delivery_target(url)
+            if refusal:
+                self.store.record_delivery(
+                    check_id=check_id, attempt=attempt, status_code=None,
+                    error=f"refusing to deliver: {refusal}", delivered=False,
+                )
+                return
             try:
                 async with self._client_factory() as client:
-                    resp = await client.post(url, content=body, headers=headers)
+                    if extensions:
+                        resp = await client.post(target, content=body, headers={**headers, **pin_headers},
+                                                 extensions=extensions)
+                    else:
+                        resp = await client.post(target, content=body, headers=headers)
                 code = int(resp.status_code)
                 ok = 200 <= code < 300
                 self.store.record_delivery(
