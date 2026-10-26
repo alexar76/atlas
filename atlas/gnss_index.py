@@ -8,6 +8,9 @@ and a separate claim class.
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable
+from typing import Any
+
 from .map_objects import normalized_hotspots
 
 
