@@ -238,3 +238,45 @@ def test_ipv6_ai_callers_share_one_bucket_per_64():
     assert key("2001:db8:1:2::1") == key("2001:db8:1:2:ffff::9")
     assert key("2001:db8:1:2::1") != key("2001:db8:1:3::1")
     assert key("203.0.113.7") == "203.0.113.7"
+
+
+def test_trusted_proxies_are_loopback_unless_named(monkeypatch, tmp_path):
+    # the class of Vulnetix GCVE-110-VULN-PYPI-2026-000636: X-Real-IP / X-Forwarded-For were taken from any
+    # private peer, so a neighbour on the same docker network or LAN named its own address.
+    import ipaddress
+    import sys
+    import atlas.main as trust
+
+    monkeypatch.delenv("ATLAS_TRUSTED_PROXIES", raising=False)
+    assert trust._peer_is_trusted_proxy("127.0.0.1") and trust._peer_is_trusted_proxy("::1")
+    for neighbour in ("172.18.0.7", "10.0.0.5", "192.168.1.20", "fe80::1", "not-an-address", ""):
+        assert not trust._peer_is_trusted_proxy(neighbour), neighbour
+    monkeypatch.setenv("ATLAS_TRUSTED_PROXIES", "10.1.0.0/16, 172.18.0.9")
+    assert trust._peer_is_trusted_proxy("10.1.2.3") and trust._peer_is_trusted_proxy("172.18.0.9")
+    assert not trust._peer_is_trusted_proxy("127.0.0.1")  # the list replaces the default
+    route = tmp_path / "route"
+    gateway_hex = "010012AC" if sys.byteorder == "little" else "AC120001"  # 172.18.0.1
+    route.write_text("Iface\tDestination\tGateway\tFlags\n"
+                     "eth0\t00000000\t" + gateway_hex + "\t0003\n")
+    monkeypatch.setattr(trust, "_PROC_NET_ROUTE", str(route))
+    monkeypatch.setenv("ATLAS_TRUSTED_PROXIES", "gateway")
+    assert trust._peer_is_trusted_proxy("172.18.0.1") and not trust._peer_is_trusted_proxy("172.18.0.2")
+    named = {"frontend": (ipaddress.ip_address("172.18.0.5"),)}
+    monkeypatch.setattr(trust, "_proxy_name_addresses", lambda name: named.get(name, ()))
+    monkeypatch.setenv("ATLAS_TRUSTED_PROXIES", "127.0.0.1, frontend")
+    assert trust._peer_is_trusted_proxy("172.18.0.5") and not trust._peer_is_trusted_proxy("172.18.0.6")
+
+
+def test_the_cli_binds_loopback_by_default(monkeypatch):
+    import uvicorn
+
+    from atlas import serve
+
+    seen = {}
+    monkeypatch.setattr(uvicorn, "run", lambda app, **kw: seen.update(kw))
+    monkeypatch.delenv("ATLAS_HOST", raising=False)
+    serve.main([])
+    assert seen["host"] == "127.0.0.1"
+    monkeypatch.setenv("ATLAS_HOST", "0.0.0.0")
+    serve.main([])
+    assert seen["host"] == "0.0.0.0"

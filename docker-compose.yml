@@ -18,6 +18,9 @@ services:
         required: true
     environment:
       ATLAS_PORT: "9330"
+      # Whose X-Real-IP / X-Forwarded-For count: the host's nginx, which reaches the published port
+      # through the docker gateway. Not every private address.
+      ATLAS_TRUSTED_PROXIES: ${ATLAS_TRUSTED_PROXIES:-127.0.0.1/32,::1/128,gateway}
       ATLAS_PUBLIC_URL: ${ATLAS_PUBLIC_URL:-https://atlas.modelmarket.dev}
       ATLAS_GAIA_URL: ${ATLAS_GAIA_URL:-https://iot.modelmarket.dev}
       ATLAS_CORS_ORIGINS: ${ATLAS_CORS_ORIGINS:-https://atlas.modelmarket.dev,https://magic-ai-factory.com,https://iot.modelmarket.dev}

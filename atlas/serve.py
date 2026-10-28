@@ -9,7 +9,9 @@ import os
 def main(argv: list[str] | None = None) -> None:
     """Run ATLAS (uvicorn) — `atlas` / `atlas-serve` console scripts."""
     parser = argparse.ArgumentParser(prog="atlas", description="ATLAS physical sensor map over GAIA")
-    parser.add_argument("--host", default=os.environ.get("ATLAS_HOST", "0.0.0.0"))
+    # Loopback unless told otherwise, as the other packages do; the image sets ATLAS_HOST=0.0.0.0
+    # for the container, whose port is published on the host's loopback only.
+    parser.add_argument("--host", default=os.environ.get("ATLAS_HOST", "127.0.0.1"))
     parser.add_argument("--port", type=int, default=int(os.environ.get("ATLAS_PORT", "9330")))
     parser.add_argument("--reload", action="store_true", help="Dev auto-reload")
     args = parser.parse_args(argv)

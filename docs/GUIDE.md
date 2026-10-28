@@ -308,6 +308,7 @@ API keys use their vendor names (`DEEPSEEK_API_KEY`, …).
 | `ATLAS_RATE_LIMIT_FORCE_PER_MIN` | `6` | Per-IP budget for `force` / `fresh` / `/refresh` |
 | `ATLAS_OPERATOR_TOKEN` | — | When set, `X-ATLAS-Token` holders skip the cache-bypass budget |
 | `ATLAS_TRUSTED_PROXY_HOPS` | `1` | Proxies in front of ATLAS. The budget key comes from `X-Real-IP` (nginx overwrites it), else this far from the **right** of `X-Forwarded-For`; `0` ignores both headers (no proxy) |
+| `ATLAS_TRUSTED_PROXIES` | loopback | Peers whose proxy headers count at all: addresses, CIDRs, host names, `gateway` (the container's default route: the host's nginx for a published port). Any other peer is keyed on itself (since 0.3.3) |
 | `ATLAS_MONITOR_STATION_LIMIT` | `24` | Stations in the Alien Monitor payload (ranked) |
 | `ATLAS_GAIA_CONCURRENCY` | `4` | Parallel GAIA invokes |
 | `ATLAS_LOCAL_LLM_ENABLED` | `false` | Count Ollama / LM Studio as available providers |
