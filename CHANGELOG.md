@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-10-29
+
+### Changed
+
+- The ecosystem context names SYMMARTYS, formerly EMPORION (public-record facts for agents that trade), with its source marked local until the GitHub publication.
+
 ## [0.3.3] - 2026-10-28
 
 ### Security
