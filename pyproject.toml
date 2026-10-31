@@ -32,14 +32,15 @@ classifiers = [
     "Topic :: Scientific/Engineering :: GIS",
 ]
 dependencies = [
-    "fastapi>=0.115.0",
+    "fastapi>=0.162.0,<1",
+    "starlette>=1.10.0,<2",
     "uvicorn[standard]>=0.34.0",
     "httpx>=0.28.0",
-    "orjson>=3.10.0",
+    "orjson>=3.11.6",
     "pydantic>=2.11.0",
     "pydantic-settings>=2.9.0",
     "PyYAML>=6.0.2",
-    "cryptography>=44.0.0",
+    "cryptography>=50.0.2,<51",
     "h3>=4.1.0",
 ]
 
