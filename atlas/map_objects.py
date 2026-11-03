@@ -8,6 +8,7 @@ more objects than the map can expose (or silently dropping 0..360 longitudes).
 from __future__ import annotations
 
 import math
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from .geo import wrap_lon
@@ -16,6 +17,28 @@ WATER_QUALITY_VALUE_FIELDS = (
     "water_temperature_c", "ph", "dissolved_oxygen_mg_l",
     "specific_conductance_us_cm",
 )
+
+_CLUSTER_OBSERVATION_AGE = {
+    "usgs-rtfi-01": (-timedelta(minutes=5), timedelta(hours=2)),
+    "usgs-groundwater-01": (timedelta(0), timedelta(hours=24)),
+}
+
+
+def is_fresh_cluster_observation(
+    parent_id: str, row: dict[str, Any], *, now: datetime | None = None,
+) -> bool:
+    """Apply source-time limits for clusters whose upstream samples can age out."""
+    age_range = _CLUSTER_OBSERVATION_AGE.get(parent_id)
+    if age_range is None:
+        return True
+    try:
+        observed = datetime.fromisoformat(str(row.get("observed_at")).replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if observed.tzinfo is None:
+        return False
+    age = (now if now is not None else datetime.now(timezone.utc)) - observed
+    return age_range[0] <= age <= age_range[1]
 
 
 def normalize_map_point(lat_value: Any, lon_value: Any) -> tuple[float, float] | None:
@@ -37,9 +60,11 @@ def normalized_hotspots(
     raw = station.get("hotspots")
     if not isinstance(raw, list):
         return None
+    source_id = str(station.get("id") or "")
+    now = datetime.now(timezone.utc) if source_id in _CLUSTER_OBSERVATION_AGE else None
     out: list[tuple[dict[str, Any], float, float]] = []
     for row in raw:
-        if not isinstance(row, dict):
+        if not isinstance(row, dict) or not is_fresh_cluster_observation(source_id, row, now=now):
             continue
         lat_value = row.get("latitude")
         lon_value = row.get("longitude")

@@ -32,10 +32,10 @@ L’acheteur **en général** ne passe pas lat/lon à GAIA invoke. Exceptions su
 
 GAIA vend les **lectures** (`gaia.*.read@v1`). ATLAS = **carte** (couches/pins) + **watchboxes**.
 
-La liste actuelle des **39 couches**, leurs couleurs exactes, leur signification
+La liste actuelle des **50 couches**, leurs couleurs exactes, leur signification
 et des exemples d’appareils figure dans la [légende de la carte ATLAS](LEGEND.fr.md).
 Elle est générée depuis le même catalogue d’exécution que la carte. Le catalogue
-contient actuellement **369 appareils configurés** ; les flux denses et événementiels
+contient actuellement **957 appareils configurés** ; les flux denses et événementiels
 peuvent créer des points de lecture supplémentaires à l’exécution.
 
 | Couche | device_id typiques | Notes |
@@ -57,10 +57,14 @@ peuvent créer des points de lecture supplémentaires à l’exécution.
 | Tsunami | `nws-tsunami-01`, `ptwc-01` | NWS CAP + PTWC Atom (pas un marégraphe ; vide ≠ tout va bien) |
 | Cyclones tropicaux | `nhc-cyclone-01` | NHC/CPHC AL+EP+CP — pas JTWC |
 | Qualité de l’eau | `usgs-wq-01` | Observations latest-continuous fraîches (48 h), paginées et jointes à USGS monitoring-locations ; seules stations aux paramètres requis, une station = un point ; Approved/Provisional + qualifiers ; historique persistant et uptime par sondages |
+| Eaux souterraines | `usgs-groundwater-01` | Trois puits pilotes de l’USGS dans le Maine, l’État de New York et le Kentucky. Profondeur en mètres sous la surface locale du sol, positive vers le bas. ATLAS affiche l’heure de mesure et le statut de validation USGS. Les observations expirent au bout de 24 heures. |
+| Points potentiellement inondés | `usgs-rtfi-01` | Le niveau d’une station USGS voisine dépasse le seuil mesuré sur le terrain pour une route, un pont, un bâtiment ou un autre site. C’est un indice provisoire d’inondation possible. Un flux vide indique seulement qu’aucun point couvert ne remplit les critères. |
 | DART | `noaa-dart-01`, `dart-*` | Les 43 stations actives du répertoire officiel NDBC figé |
 | EPA RadNet | `radnet-*` | Les 140 coordonnées officielles des moniteurs EPA, pas trois villes de démonstration |
 | État NEXRAD | `nexrad-status-01` | Chaque site WSR-88D à sa coordonnée ; état, pas réflectivité |
 | Grilles/modèles par coordonnée | `imerg-01`, `cams-*`, `soil-*`, `solar-*`, `snow-*`, `nsidc-ice-01`, `lst-*` | `lat`/`lon` acheteur ; ATLAS utilise la coordonnée de cellule source/requête renvoyée |
+
+Sur la carte complète, le bouton **Imagerie radar NOAA** affiche le raster de réflectivité de base NOAA/NWS MRMS pour les États-Unis continentaux, l’Alaska, Hawaï, les Caraïbes et Guam. ATLAS affiche une fenêtre UTC de 10 minutes qui se termine à la dernière heure publiée et masque la mosaïque lorsque cette heure remonte à plus de 20 minutes. Les couleurs suivent la palette de réflectivité de la source. **État NEXRAD** est la couche distincte dédiée à l’état des stations. [Service d’images NOAA](https://mapservices.weather.noaa.gov/eventdriven/rest/services/radar/radar_base_reflectivity_time/ImageServer) · [Politique de données du NWS](https://www.weather.gov/disclaimer)
 
 ## Watchboxes (`atlas.watchbox.subscribe@v1` + `atlas.watchbox.check@v1`)
 

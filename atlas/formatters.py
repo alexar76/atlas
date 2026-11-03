@@ -66,6 +66,16 @@ FIELD_META: dict[str, dict[str, str]] = {
         "unit": "m",
         "hint": "River stage above datum",
     },
+    "flood_gage_level_m": {"label": "Gage water level", "unit": "m", "hint": "Level on the threshold's reference datum"},
+    "flood_threshold_m": {"label": "Surveyed threshold", "unit": "m", "hint": "Water level at which local inundation is possible"},
+    "flood_exceedance_m": {"label": "Above threshold", "unit": "m", "hint": "Provisional difference between gage level and threshold"},
+    "groundwater_depth_m": {
+        "label": "Depth to water",
+        "unit": "m",
+        "hint": "Measured from the local land surface, positive downward",
+    },
+    "approval_status": {"label": "USGS approval status", "unit": "", "hint": ""},
+    "qualifier": {"label": "USGS qualifier", "unit": "", "hint": ""},
     "wave_height_m": {
         "label": "Wave height",
         "unit": "m",
@@ -329,6 +339,7 @@ LAYER_BLURB: dict[str, str] = {
     "drought": "U.S. Drought Monitor weekly state statistics (attribute NDMC / USDA / NOAA / NASA).",
     "smoke": "NOAA/NESDIS HMS qualitative smoke polygons (U.S. public domain). Polygon centroids, not PM2.5 sensors.",
     "water_quality": "USGS automated continuous water quality (U.S. public domain; values may be provisional).",
+    "groundwater": "USGS pilot well depth below local land surface. Measurements may be provisional.",
     "dart": "NOAA/NDBC DART deep-ocean water-column height (U.S. public domain). Gauge, not a warning.",
     "precipitation": "NASA GPM IMERG Early Run V07 half-hour grid cells (NASA open data; preliminary).",
     "radar": "NOAA/NWS NEXRAD WSR-88D operational health per radar coordinate; not reflectivity pixels.",
@@ -344,6 +355,7 @@ LAYER_BLURB: dict[str, str] = {
 }
 
 _LAYER_FIELD_HINTS: dict[tuple[str, str], str] = {
+    ("groundwater", "observation_unix"): "When the well measurement was taken",
     ("jamming", "severity_score"): "GNSS interference severity score",
     ("effis", "severity_score"): "EFFIS burnt-area score from polygon size",
     ("flood", "severity_score"): "Flood / flash-flood warning severity",
@@ -466,6 +478,9 @@ def headline(layer: str, values: dict[str, Any]) -> str:
             t = _fmt_num(values.get("temperature_c"), digits=1)
             return f"IoT {t} °C" if t is not None else "IoT"
         if layer == "flood":
+            exceedance = _fmt_num(values.get("flood_exceedance_m"), digits=2)
+            if exceedance is not None:
+                return f"Provisional · {exceedance} m above threshold"
             s = _fmt_num(values.get("severity_score"), digits=0)
             return f"Flood {s}" if s is not None else "Flood"
         if layer == "effis":
@@ -492,6 +507,9 @@ def headline(layer: str, values: dict[str, Any]) -> str:
         if layer == "water_quality":
             ph = _fmt_num(values.get("ph"), digits=1)
             return f"Water pH {ph}" if ph is not None else "Water quality"
+        if layer == "groundwater":
+            depth = _fmt_num(values.get("groundwater_depth_m"), digits=2)
+            return f"Depth to water {depth} m" if depth is not None else "Groundwater well"
         if layer == "dart":
             h = _fmt_num(values.get("water_column_height_m"), digits=3)
             return f"DART {h} m" if h is not None else "DART gauge"
@@ -544,7 +562,7 @@ def metric_rows(values: dict[str, Any], *, layer: str = "") -> list[dict[str, st
     for key, raw in values.items():
         meta = FIELD_META.get(key, {"label": key.replace("_", " "), "unit": "", "hint": ""})
         digits = 3 if key in {"water_level_m", "gage_height_m", "latitude", "longitude"} else (
-            2 if key in {"wave_height_m", "discharge_m3s", "pool_elev_m"} else (
+            2 if key in {"wave_height_m", "discharge_m3s", "pool_elev_m", "groundwater_depth_m"} else (
                 0 if key.endswith("_kwh") else 1
             )
         )
@@ -626,6 +644,15 @@ def build_detail(
     located = f"in {place}" if named else (f"at {place}" if place != "Unknown location" else "at an unreported position")
     title = station.get("label") or station.get("id")
     hl = station.get("headline") or headline(layer, values)
+    blurb = LAYER_BLURB.get(layer, "")
+    boundary = {}
+    if station.get("claim_class") == "surveyed_flood_threshold_exceedance":
+        blurb = "USGS surveyed flood impact threshold"
+        boundary["evidence_boundary"] = (
+            f"USGS gage {station.get('gage_id', '')} observed at {station.get('observed_at', '')}. "
+            "The threshold exceedance indicates possible local inundation. "
+            "Road closure and on-site flooding require separate confirmation."
+        )
 
     bits: list[str] = []
     mode = str(station.get("mode") or ("live" if station.get("live") else "sim"))
@@ -646,7 +673,7 @@ def build_detail(
             bits.append(f"cached · {max(1, age_ms // 1000)}s ago")
 
     summary = (
-        f"{title} {located}. {LAYER_BLURB.get(layer, 'Sensor reading.')} "
+        f"{title} {located}. {(blurb or 'Sensor reading').rstrip('.')}. "
         f"Latest: {hl}."
     )
     if metrics:
@@ -656,11 +683,12 @@ def build_detail(
     return {
         **station,
         "title": title,
-        "subtitle": f"{LAYER_BLURB.get(layer, layer).rstrip('.')} · {place}",
+        "subtitle": f"{(blurb or layer).rstrip('.')} · {place}",
         "summary": summary,
         "metrics": metrics,
         "cached": cached,
         "age_ms": age_ms,
         "status_line": " · ".join(bits),
-        "blurb": LAYER_BLURB.get(layer, ""),
+        "blurb": blurb,
+        **boundary,
     }

@@ -2,7 +2,29 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 from atlas.fleet import expand_fire_hotspots
+from atlas.formatters import build_detail
+
+
+def test_rtfi_fans_out_only_fresh_surveyed_points():
+    now = datetime.now(UTC)
+    current = {
+        "rtfi_point_id": 18127, "latitude": 42.2, "longitude": -79.1,
+        "flood_gage_level_m": 179.4297, "flood_threshold_m": 178.0032,
+        "flood_exceedance_m": 1.4265, "gage_id": "04224000",
+        "observed_at": now.isoformat(), "claim_class": "surveyed_flood_threshold_exceedance",
+    }
+    stale = {**current, "rtfi_point_id": 2, "observed_at": (now - timedelta(hours=3)).isoformat()}
+    [point] = expand_fire_hotspots([{
+        "id": "usgs-rtfi-01", "layer": "flood", "live": True, "hotspots": [current, stale],
+    }])
+    assert point["id"] == "flood-hs-18127"
+    assert point["values"]["flood_exceedance_m"] == 1.4265
+    detail = build_detail(point, cached=True, age_ms=0)
+    assert "Provisional" in detail["headline"]
+    assert current["observed_at"] in detail["evidence_boundary"]
 
 
 def test_expand_fire_hotspots_fans_cluster():

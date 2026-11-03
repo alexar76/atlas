@@ -51,6 +51,9 @@ ATLAS 是运营方的**传感器地图**，并带 **ATLAS Analyst**。GAIA 对 L
 | 欧洲哪些火在 EFFIS 当前列表里？ | EFFIS `effis-01` | Copernicus EMS / JRC 当前火情，**CC BY 4.0**。 | 全球 VIIRS 替代品；不是 FIRMS。 |
 | 有没有 NASA 开放自然灾害事件（火山、风暴、冰，…）？ | Natural events `eonet-01` | EONET 目录事件。须注明 NASA EONET。 | NHC 路径；不是**热带气旋**公报。 |
 | 美国是否有洪水 / 山洪 CAP？ | Flood `nws-flood-01` | NWS **CAP**，**洪水预警**（美国公有领域）。 | 英格兰 / 全球洪水模型。不抓取 GloFAS。 |
+| 目前哪里可看到雷达反射率？ | 完整地图上的 NOAA 雷达影像 | NOAA/NWS MRMS 基础反射率，显示截至数据源最新发布时间的 10 分钟 UTC 窗口。超过 20 分钟后隐藏拼图。 | 累积降水、预报或 NEXRAD 站点运行状态。 |
+| 哪些经过测量的道路或桥梁可能受淹？ | 洪水 `usgs-rtfi-01` | 附近 USGS 水文站水位超过覆盖点位的实测阈值。结果为初步判断，并附观测时间。 | 道路已经封闭，或整个地区没有风险。 |
+| 这口井的水面在地表以下多深？ | 地下水 `usgs-groundwater-01` | 三个 USGS 试点井的水面距当地地表的深度，以米为单位，并附测量时间及审核状态。 | 海拔高度或覆盖全美的井网。 |
 | 这条河**锚点**的水位/流量是多少？ | Rivers | USGS / ECCC / SMHI 的 **in-situ** **读数**。 | **洪水预警**。Gage height 不是**水质**。 |
 | 这个美国 bbox 内的连续水化学状况如何？ | Water quality `usgs-wq-01` | bbox 内全部当前 USGS 站点；pH、温度、溶解氧和电导率；保留临时/质量元数据。 | 河流水位、离散实验室样本或美国境外覆盖。 |
 | EPA 全国辐射基线如何，哪里发生偏离？ | EPA RadNet `radnet-*` | 全部 140 个官方监测坐标及已批准的小时 gamma 读数。 | 剂量预测或紧急状态声明。 |

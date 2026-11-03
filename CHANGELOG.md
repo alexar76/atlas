@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-11-03
+
+### Changed
+
+- The ecosystem context lists SYMMARTYS as published (aimarket-symmartys 0.5.0 on PyPI since 2026-10-29) instead of "local source; GitHub publication pending".
+
 ## [0.3.4] - 2026-10-29
 
 ### Changed

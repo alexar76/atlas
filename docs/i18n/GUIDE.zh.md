@@ -32,9 +32,9 @@ ATLAS 是生态中的**传感器地图**：天气、空气质量、潮汐、河�
 
 GAIA 出售**读数**（`gaia.*.read@v1`）。ATLAS 是**地图**（图层/针脚）与 **watchboxes**。
 
-全部 **39 个图层**的当前列表、精确颜色、含义和设备示例见
+全部 **50 个图层**的当前列表、精确颜色、含义和设备示例见
 [ATLAS 地图图例](LEGEND.zh.md)。该图例与地图使用同一运行时目录生成。
-目录当前包含 **369 个已配置设备**；事件和密集数据源可在运行时创建更多读数点。
+目录当前包含 **957 个已配置设备**；事件和密集数据源可在运行时创建更多读数点。
 
 | 图层 | 典型 device_id | 说明 |
 |------|----------------|------|
@@ -55,10 +55,14 @@ GAIA 出售**读数**（`gaia.*.read@v1`）。ATLAS 是**地图**（图层/针�
 | 海啸 | `nws-tsunami-01`, `ptwc-01` | NWS CAP + PTWC Atom（不是验潮仪；空 ≠ 全部安全） |
 | 热带气旋 | `nhc-cyclone-01` | NHC/CPHC AL+EP+CP — 不是 JTWC |
 | 水质 | `usgs-wq-01` | 新鲜（48 小时）分页 latest-continuous 观测联接 USGS monitoring-locations；仅保留所需参数站点，一站一点；逐参数 Approved/Provisional + qualifiers；持久历史及按轮询计算的 uptime |
+| 地下水 | `usgs-groundwater-01` | 覆盖缅因州、纽约州和肯塔基州的三个 USGS 试点井。深度以当地地表为基准，单位为米，向下为正。ATLAS 显示测量时间和 USGS 审核状态。超过 24 小时的观测会被隐藏。 |
+| 可能受淹点位 | `usgs-rtfi-01` | 附近 USGS 水文站的水位超过道路、桥梁、建筑物或其他地点的实测阈值，提示该地点可能受淹。结果为初步判断。空结果仅表示覆盖范围内没有满足条件的点位。 |
 | DART | `noaa-dart-01`, `dart-*` | 固化官方 NDBC 目录中的全部 43 个活动站 |
 | EPA RadNet | `radnet-*` | 全部 140 个 EPA 官方监测点坐标，不是三个演示城市 |
 | NEXRAD 状态 | `nexrad-status-01` | 每个 WSR-88D 站点位于自身坐标；是状态，不是反射率 |
 | 坐标网格/模型 | `imerg-01`, `cams-*`, `soil-*`, `solar-*`, `snow-*`, `nsidc-ice-01`, `lst-*` | 买方 `lat`/`lon`；ATLAS 使用返回的源/查询网格坐标 |
+
+完整地图的 **NOAA 雷达影像** 开关显示 NOAA/NWS MRMS 基础反射率栅格，覆盖美国大陆、阿拉斯加、夏威夷、加勒比地区和关岛。ATLAS 显示截至数据源最新发布时间的 10 分钟 UTC 窗口。若该时间已过去超过 20 分钟，地图会隐藏拼图。栅格沿用数据源的反射率配色。站点运行状态见独立的 **NEXRAD 状态** 图层。 [NOAA 影像服务](https://mapservices.weather.noaa.gov/eventdriven/rest/services/radar/radar_base_reflectivity_time/ImageServer) · [NWS 数据政策](https://www.weather.gov/disclaimer)
 
 ## Watchboxes (`atlas.watchbox.subscribe@v1` + `atlas.watchbox.check@v1`)
 

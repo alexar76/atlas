@@ -583,7 +583,13 @@ def situation_brief(data: dict[str, Any], stations: list[dict[str, Any]]) -> dic
         drivers.append("FIRMS + EFFIS both LIVE — two independent fire products, listed separately")
         score += 3
     if coverage.get("flood", {}).get("live") and coverage.get("river", {}).get("live"):
-        drivers.append("flood alerts + river gauges both LIVE — hydrology pairing (not a flood model)")
+        flood_label = "flood alerts"
+        if any(
+            s.get("claim_class") == "surveyed_flood_threshold_exceedance"
+            for s in live
+        ):
+            flood_label = "flood evidence"
+        drivers.append(f"{flood_label} + river gauges both LIVE — hydrology pairing (not a flood model)")
         score += 4
     if coverage.get("lightning", {}).get("live") and coverage.get("fire", {}).get("live"):
         drivers.append(

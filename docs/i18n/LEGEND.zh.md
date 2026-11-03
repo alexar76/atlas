@@ -8,7 +8,11 @@
 
 颜色标识图层，不表示严重程度或传感器健康状态。部分相关图层有意共用颜色；请通过图层键和筛选器区分。LIVE/SIM 状态与可用性另行显示。
 
-当前目录定义了 49 个图层和 955 个已配置设备。事件和密集数据源可在运行时创建更多读数点。
+当前目录定义了 50 个图层和 957 个已配置设备。事件和密集数据源可在运行时创建更多读数点。
+
+完整地图还提供 **NOAA 雷达影像**。这是一层不计入数据图层总数的 NOAA/NWS MRMS 反射率栅格。下表的 `radar` 行表示 NEXRAD 站点状态。
+
+`flood` 中的 `usgs-rtfi-01` 标出已测量且初步判断超过阈值的点位。`groundwater` 图层显示三个 USGS 试点井的水面距当地地表的深度。
 
 | 颜色 | 图层键 | 表示内容 | device_id 示例 |
 |---|---|---|---|
@@ -33,7 +37,7 @@
 | <span style="color:#22d3ee">●</span> `#22d3ee` | `argo` | Argo 浮标 | `argo-01` |
 | <span style="color:#c084fc">●</span> `#c084fc` | `geomag` | 地磁 | `usgs-geomag-01`, `usgs-geomag-brw`, `usgs-geomag-bsl`, `usgs-geomag-cmo` +10 |
 | <span style="color:#2dd4bf">●</span> `#2dd4bf` | `iot` | 边缘物联网 | `feeder-iot-01` |
-| <span style="color:#38bdf8">●</span> `#38bdf8` | `flood` | 洪水 | `vic-meuse-01`, `gfm-flood-01`, `nws-flood-01`, `ea-flood-01` +18 |
+| <span style="color:#38bdf8">●</span> `#38bdf8` | `flood` | 洪水 | `vic-meuse-01`, `gfm-flood-01`, `nws-flood-01`, `ea-flood-01` +19 |
 | <span style="color:#ea580c">●</span> `#ea580c` | `effis` | EFFIS 火情 | `effis-01` |
 | <span style="color:#ef4444">●</span> `#ef4444` | `volcano` | 火山 | `usgs-volcano-01` |
 | <span style="color:#0891b2">●</span> `#0891b2` | `ais` | 公开 AIS | `fintraffic-ais-01`, `kystverket-ais-01` |
@@ -42,6 +46,7 @@
 | <span style="color:#0ea5e9">●</span> `#0ea5e9` | `adsb` | 公开 ADS-B | `adsb-lol-01` |
 | <span style="color:#94a3b8">●</span> `#94a3b8` | `smoke` | 烟雾 | `hms-smoke-01` |
 | <span style="color:#06b6d4">●</span> `#06b6d4` | `water_quality` | 水质 | `usgs-wq-01` |
+| <span style="color:#0d9488">●</span> `#0d9488` | `groundwater` | 地下水 | `usgs-groundwater-01` |
 | <span style="color:#1d4ed8">●</span> `#1d4ed8` | `dart` | DART 浮标 | `dart-21414`, `dart-21415`, `dart-21416`, `dart-21418` +39 |
 | <span style="color:#0ea5e9">●</span> `#0ea5e9` | `precipitation` | 降水 | `imerg-01` |
 | <span style="color:#22c55e">●</span> `#22c55e` | `radar` | NEXRAD 状态 | `nexrad-status-01` |

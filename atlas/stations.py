@@ -594,6 +594,16 @@ STATION_CATALOG: dict[str, dict[str, Any]] = {
         "kind": "event",
         "mode": "live",
     },
+    "usgs-rtfi-01": {
+        "layer": "flood",
+        "label": "USGS Flood Impact Thresholds",
+        "capability": "gaia.flood.read@v1",
+        "lat": 0.0,
+        "lon": 0.0,
+        "place": "USGS RT-FI surveyed locations with provisional threshold exceedances",
+        "kind": "event",
+        "mode": "live",
+    },
     "ptwc-01": {
         "layer": "tsunami",
         "label": "PTWC Tsunami Alerts",
@@ -641,6 +651,16 @@ STATION_CATALOG: dict[str, dict[str, Any]] = {
         "lat": 0.0,
         "lon": 0.0,
         "place": "All current USGS stations in the requested bbox (provisional)",
+        "kind": "event",
+        "mode": "live",
+    },
+    "usgs-groundwater-01": {
+        "layer": "groundwater",
+        "label": "USGS Groundwater Wells",
+        "capability": "gaia.groundwater.read@v1",
+        "lat": 0.0,
+        "lon": 0.0,
+        "place": "Pilot wells in Maine, New York and Kentucky",
         "kind": "event",
         "mode": "live",
     },
@@ -1861,6 +1881,14 @@ LAYER_META: dict[str, dict[str, Any]] = {
         "labels": {
             "en": "Water quality", "ru": "Качество воды", "es": "Calidad del agua",
             "fr": "Qualité de l’eau", "zh": "水质",
+        },
+    },
+    "groundwater": {
+        "color": "#0d9488",
+        "label": "Groundwater",
+        "labels": {
+            "en": "Groundwater", "ru": "Грунтовые воды", "es": "Aguas subterráneas",
+            "fr": "Eaux souterraines", "zh": "地下水",
         },
     },
     "dart": {

@@ -74,6 +74,38 @@ def test_new_environment_layers_keep_one_reading_per_coordinate():
     assert all(meta["kind"] == "point" and meta["layer"] == "river" for meta in pegels)
 
 
+def test_groundwater_cluster_expands_to_fresh_well_and_keeps_datum():
+    from datetime import datetime, timedelta, timezone
+
+    from atlas.fleet import expand_map_objects
+    from atlas.formatters import build_detail
+
+    now = datetime.now(timezone.utc)
+    row = {
+        "station_id": "USGS-445227067520101", "latitude": 44.8742, "longitude": -67.8664,
+        "groundwater_depth_m": 2.0391, "observed_at": now.isoformat(),
+        "observation_unix": now.timestamp(), "approval_status": "Provisional",
+        "reference": "Local land surface (positive downward)",
+    }
+    stale = {
+        **row, "station_id": "USGS-424452076081902",
+        "observed_at": (now - timedelta(hours=25)).isoformat(),
+    }
+    parent = {
+        "id": "usgs-groundwater-01", "layer": "groundwater", "cluster_parent": True,
+        "online": True, "live": True, "hotspots": [row, stale],
+    }
+    [point] = expand_map_objects([parent])
+    assert point["id"] == "usgs-gw-well-USGS-445227067520101"
+    assert (point["lat"], point["lon"]) == (44.8742, -67.8664)
+    assert point["reference"] == row["reference"]
+    detail = build_detail(point, cached=True, age_ms=0)
+    metrics = {metric["key"]: metric for metric in detail["metrics"]}
+    assert metrics["groundwater_depth_m"]["value"] == "2.04 m"
+    assert metrics["approval_status"]["value"] == "Provisional"
+    assert "well measurement" in metrics["observation_unix"]["hint"]
+
+
 def test_p11_catalog_pins_are_points_with_coordinates():
     """P11 meshes are in-situ stations: ATLAS must place a clickable point pin."""
     from atlas.fleet import pin_from_catalog, wanted_station_ids

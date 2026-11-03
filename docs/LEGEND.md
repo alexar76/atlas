@@ -8,7 +8,11 @@ This legend is generated from `atlas.stations.LAYER_META` and `STATION_CATALOG`;
 
 Colour identifies the layer, not severity or sensor health. Some related layers intentionally share a colour; use the layer key and filter to distinguish them. LIVE/SIM state and availability are shown separately.
 
-The catalog currently defines 49 layers and 955 configured devices. Event and dense feeds may create additional reading points at runtime.
+The catalog currently defines 50 layers and 957 configured devices. Event and dense feeds may create additional reading points at runtime.
+
+The full map also offers **NOAA radar imagery**, a NOAA/NWS MRMS reflectivity raster outside the data-layer count. The `radar` row below represents NEXRAD station status.
+
+In `flood`, `usgs-rtfi-01` identifies surveyed locations with preliminary threshold exceedances. The `groundwater` layer shows depth below local land surface at three USGS pilot wells.
 
 | Colour | Layer key | Meaning | Example device IDs |
 |---|---|---|---|
@@ -33,7 +37,7 @@ The catalog currently defines 49 layers and 955 configured devices. Event and de
 | <span style="color:#22d3ee">●</span> `#22d3ee` | `argo` | Argo floats | `argo-01` |
 | <span style="color:#c084fc">●</span> `#c084fc` | `geomag` | Geomagnetism | `usgs-geomag-01`, `usgs-geomag-brw`, `usgs-geomag-bsl`, `usgs-geomag-cmo` +10 |
 | <span style="color:#2dd4bf">●</span> `#2dd4bf` | `iot` | Edge IoT | `feeder-iot-01` |
-| <span style="color:#38bdf8">●</span> `#38bdf8` | `flood` | Flood | `vic-meuse-01`, `gfm-flood-01`, `nws-flood-01`, `ea-flood-01` +18 |
+| <span style="color:#38bdf8">●</span> `#38bdf8` | `flood` | Flood | `vic-meuse-01`, `gfm-flood-01`, `nws-flood-01`, `ea-flood-01` +19 |
 | <span style="color:#ea580c">●</span> `#ea580c` | `effis` | EFFIS fires | `effis-01` |
 | <span style="color:#ef4444">●</span> `#ef4444` | `volcano` | Volcanoes | `usgs-volcano-01` |
 | <span style="color:#0891b2">●</span> `#0891b2` | `ais` | Public AIS | `fintraffic-ais-01`, `kystverket-ais-01` |
@@ -42,6 +46,7 @@ The catalog currently defines 49 layers and 955 configured devices. Event and de
 | <span style="color:#0ea5e9">●</span> `#0ea5e9` | `adsb` | Public ADS-B | `adsb-lol-01` |
 | <span style="color:#94a3b8">●</span> `#94a3b8` | `smoke` | Smoke | `hms-smoke-01` |
 | <span style="color:#06b6d4">●</span> `#06b6d4` | `water_quality` | Water quality | `usgs-wq-01` |
+| <span style="color:#0d9488">●</span> `#0d9488` | `groundwater` | Groundwater | `usgs-groundwater-01` |
 | <span style="color:#1d4ed8">●</span> `#1d4ed8` | `dart` | DART gauges | `dart-21414`, `dart-21415`, `dart-21416`, `dart-21418` +39 |
 | <span style="color:#0ea5e9">●</span> `#0ea5e9` | `precipitation` | Precipitation | `imerg-01` |
 | <span style="color:#22c55e">●</span> `#22c55e` | `radar` | NEXRAD status | `nexrad-status-01` |

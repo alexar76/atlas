@@ -50,10 +50,10 @@ Station networks use official registry coordinates. Coordinate/grid capabilities
 
 ## Layers & stations
 
-The canonical, current list of all **39 layers**, their exact colours, localized
+The canonical, current list of all **50 data layers**, their exact colours, localized
 meaning, and example device anchors is the [ATLAS map legend](LEGEND.md). It is
 generated from the same runtime catalog as the map. The catalog currently has
-**429 configured devices**; dense/event feeds can expand into additional reading
+**957 configured devices**; dense/event feeds can expand into additional reading
 points at runtime.
 
 GAIA sells the **readings** (`gaia.*.read@v1`). ATLAS is where those devices
@@ -88,10 +88,14 @@ appear as **map layers / pins** and where **watchboxes** run.
 | Tsunami alerts | `nws-tsunami-01`, `ptwc-01` | NWS CAP US · PTWC Atom Pacific — often empty; not a tide gauge; empty ≠ all-clear |
 | Tropical cyclones | `nhc-cyclone-01` | NHC/CPHC CurrentStorms (U.S. PD) — Atlantic + EPac + CPac; not JTWC; empty season → offline |
 | Water quality | `usgs-wq-01` | Fresh (48h default) paginated latest-continuous observations joined to USGS monitoring-locations; only parameter-qualified stations, one station = one point; per-parameter Approved/Provisional + qualifiers; bounded durable history and poll-based uptime |
+| Groundwater | `usgs-groundwater-01` | Three USGS pilot wells in Maine, New York, and Kentucky. Depth in metres below local land surface, positive downward. ATLAS shows the observation time and the USGS approval status. Observations expire after 24 hours. |
+| Flood impact locations | `usgs-rtfi-01` | A nearby USGS gauge exceeded the surveyed threshold for a road, bridge, building, or other site. Preliminary indication of possible inundation. An empty feed only means no qualifying points in the covered sites. |
 | DART | `noaa-dart-01`, `dart-*` | All 43 active stations from the checked-in official NDBC directory |
 | EPA RadNet | `radnet-*` | All 140 official EPA monitor coordinates, not three demo cities |
 | NEXRAD status | `nexrad-status-01` | Every returned WSR-88D site at its own coordinate; status, not reflectivity |
 | Coordinate grids/models | `imerg-01`, `cams-*`, `soil-*`, `solar-*`, `snow-*`, `nsidc-ice-01`, `lst-*` | Buyer `lat`/`lon`; ATLAS uses the returned source/query-cell coordinate |
+
+On the full map, **NOAA radar imagery** shows the NOAA/NWS MRMS base-reflectivity raster for the continental United States, Alaska, Hawaii, the Caribbean, and Guam. ATLAS displays a 10-minute UTC window ending at the latest published source time and hides the mosaic once that time is more than 20 minutes old. The raster uses the source reflectivity palette. **NEXRAD status** is a separate layer for station health. [NOAA image service](https://mapservices.weather.noaa.gov/eventdriven/rest/services/radar/radar_base_reflectivity_time/ImageServer) · [NWS data policy](https://www.weather.gov/disclaimer)
 
 Mesh cities: Ottawa · New Delhi · Tokyo · Sydney · São Paulo · Lagos · Cairo ·
 Cape Town · Singapore · Dubai · Los Angeles · Mexico City · Moscow · Paris ·

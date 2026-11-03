@@ -51,6 +51,9 @@ These are the same commercial filter as LIVE-RELAYS. A use case that fails one r
 | Which European fires are in the EFFIS current list? | EFFIS `effis-01` | Copernicus EMS / JRC current fires, **CC BY 4.0**. | A global VIIRS substitute; not FIRMS. |
 | Is there a NASA open natural event (volcano, storm, ice, …)? | Natural events `eonet-01` | EONET catalog event. Cite NASA EONET. | NHC storm track; not a **tropical cyclone** advisory. |
 | Is the US in a flood / flash-flood CAP? | Flood `nws-flood-01` | NWS **CAP** **flood warning** (U.S. PD). | England / global flood model. GloFAS is not scraped. |
+| Where is radar reflectivity visible now? | NOAA radar imagery (full map) | NOAA/NWS MRMS base reflectivity in a 10-minute UTC window ending at the latest source time. The mosaic hides after 20 minutes. | Rainfall accumulation, a forecast, or NEXRAD station status. |
+| Which surveyed roads or bridges may be flooded? | Flood `usgs-rtfi-01` | A nearby USGS gage exceeds a surveyed threshold at a covered location. Provisional, with gage observation time. | A confirmed closure or all-clear across the region. |
+| How far below the land surface is water at this well? | Groundwater `usgs-groundwater-01` | Depth in meters from local land surface at three USGS pilot wells. Includes time and approval status. | Elevation above sea level or nationwide well coverage. |
 | What is stage/discharge at this river **anchor**? | Rivers | USGS / ECCC / SMHI **in-situ** **reading**. | A **flood warning**. Gage height is not **water quality**. |
 | Is there a US tsunami **warning product**? | Tsunami `nws-tsunami-01` | NWS CAP tsunami warning/watch/advisory. Often **empty → offline**. | A tide gauge. Empty is not “no tsunami on Earth”. |
 | Is there a Pacific tsunami **warning product**? | Tsunami `ptwc-01` | PTWC Atom. Information-only quake statements are not sold. Empty → offline. | A tide gauge. Empty ≠ all-clear. Analyst must not order evacuation. |

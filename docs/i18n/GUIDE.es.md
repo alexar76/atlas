@@ -32,10 +32,10 @@ El comprador **por lo general** no pasa lat/lon a GAIA invoke — anclajes del o
 
 GAIA vende **lecturas** (`gaia.*.read@v1`). ATLAS es el **mapa** (capas/pines) y los **watchboxes**.
 
-La lista actual de las **39 capas**, sus colores exactos, significado y ejemplos
+La lista actual de las **50 capas**, sus colores exactos, significado y ejemplos
 de dispositivos está en la [leyenda del mapa ATLAS](LEGEND.es.md). Se genera desde
 el mismo catálogo de ejecución que el mapa. El catálogo contiene actualmente
-**369 dispositivos configurados**; las fuentes densas y de eventos pueden crear puntos
+**957 dispositivos configurados**; las fuentes densas y de eventos pueden crear puntos
 de lectura adicionales en ejecución.
 
 | Capa | device_id típicos | Notas |
@@ -57,10 +57,14 @@ de lectura adicionales en ejecución.
 | Tsunami | `nws-tsunami-01`, `ptwc-01` | NWS CAP + PTWC Atom (no un mareógrafo; vacío ≠ todo despejado) |
 | Ciclones tropicales | `nhc-cyclone-01` | NHC/CPHC AL+EP+CP — no JTWC |
 | Calidad del agua | `usgs-wq-01` | Observaciones latest-continuous frescas (48 h), paginadas y unidas a USGS monitoring-locations; solo estaciones con parámetros requeridos, una estación = un punto; Approved/Provisional + qualifiers; historial persistente y uptime por sondeos |
+| Aguas subterráneas | `usgs-groundwater-01` | Tres pozos piloto del USGS en Maine, Nueva York y Kentucky. Profundidad en metros bajo la superficie local del terreno, con signo positivo hacia abajo. ATLAS muestra la hora de medición y el estado de aprobación del USGS. Las observaciones caducan tras 24 horas. |
+| Puntos de posible inundación | `usgs-rtfi-01` | El nivel de una estación del USGS supera el umbral levantado para una carretera, puente, edificio u otro punto. Es un indicio preliminar de posible inundación. Un resultado vacío solo indica que ningún punto cubierto cumple los criterios. |
 | DART | `noaa-dart-01`, `dart-*` | Las 43 estaciones activas del directorio oficial NDBC fijado |
 | EPA RadNet | `radnet-*` | Las 140 coordenadas oficiales de monitores EPA, no tres ciudades de demostración |
 | Estado NEXRAD | `nexrad-status-01` | Cada sitio WSR-88D en su coordenada; estado, no reflectividad |
 | Cuadrículas/modelos por coordenada | `imerg-01`, `cams-*`, `soil-*`, `solar-*`, `snow-*`, `nsidc-ice-01`, `lst-*` | `lat`/`lon` del comprador; ATLAS usa la coordenada de celda fuente/consulta devuelta |
+
+En el mapa completo, el control **Imágenes de radar de NOAA** muestra el ráster de reflectividad base NOAA/NWS MRMS para Estados Unidos continental, Alaska, Hawái, el Caribe y Guam. ATLAS presenta una ventana UTC de 10 minutos que termina en la última hora publicada y oculta el mosaico cuando esa hora tiene más de 20 minutos. Los colores siguen la paleta de reflectividad de la fuente. **Estado NEXRAD** es la capa independiente de estado de las estaciones. [Servicio de imágenes NOAA](https://mapservices.weather.noaa.gov/eventdriven/rest/services/radar/radar_base_reflectivity_time/ImageServer) · [Política de datos del NWS](https://www.weather.gov/disclaimer)
 
 ## Watchboxes (`atlas.watchbox.subscribe@v1` + `atlas.watchbox.check@v1`)
 

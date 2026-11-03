@@ -17,7 +17,7 @@ from .geo import expand_bbox, in_bbox, lon_span, normalize_bbox, station_ids_in_
 from . import fleet as fleet_mod
 from .gnss_index import integrity_counts
 from .layer_counts import build_layer_counts
-from .map_objects import normalized_hotspots
+from .map_objects import is_fresh_cluster_observation, normalized_hotspots
 from .readings import ReadingStore
 from .stations import LAYER_META, STATION_CATALOG
 from .water_quality_history import WaterQualityHistoryStore
@@ -149,7 +149,8 @@ class Aggregator:
         if item is None:
             return None
         point, seen_at = item
-        if time.monotonic() - seen_at > _POINT_REGISTRY_TTL_S:
+        if (time.monotonic() - seen_at > _POINT_REGISTRY_TTL_S
+                or not is_fresh_cluster_observation(str(point.get("parent_id") or ""), point)):
             self._point_registry.pop(point_id, None)
             return None
         self._point_registry.move_to_end(point_id)

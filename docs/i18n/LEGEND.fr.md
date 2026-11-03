@@ -8,7 +8,11 @@ Cette légende est générée depuis `atlas.stations.LAYER_META` et `STATION_CAT
 
 La couleur identifie la couche, pas la gravité ni l’état du capteur. Certaines couches liées partagent volontairement une couleur ; la clé et le filtre de couche les distinguent. Les états LIVE/SIM et la disponibilité sont affichés séparément.
 
-Le catalogue définit actuellement 49 couches et 955 appareils configurés. Les flux denses et événementiels peuvent créer des points de lecture supplémentaires à l’exécution.
+Le catalogue définit actuellement 50 couches et 957 appareils configurés. Les flux denses et événementiels peuvent créer des points de lecture supplémentaires à l’exécution.
+
+La carte complète propose aussi **Imagerie radar NOAA**, un raster de réflectivité NOAA/NWS MRMS hors du décompte des couches de données. La ligne `radar` indique l’état des stations NEXRAD.
+
+Dans `flood`, `usgs-rtfi-01` indique les sites relevés où le dépassement d’un seuil est provisoire. La couche `groundwater` indique la profondeur sous la surface locale du sol pour trois puits pilotes USGS.
 
 | Couleur | Clé de couche | Signification | Exemples de device_id |
 |---|---|---|---|
@@ -33,7 +37,7 @@ Le catalogue définit actuellement 49 couches et 955 appareils configurés. Les 
 | <span style="color:#22d3ee">●</span> `#22d3ee` | `argo` | Flotteurs Argo | `argo-01` |
 | <span style="color:#c084fc">●</span> `#c084fc` | `geomag` | Géomagnétisme | `usgs-geomag-01`, `usgs-geomag-brw`, `usgs-geomag-bsl`, `usgs-geomag-cmo` +10 |
 | <span style="color:#2dd4bf">●</span> `#2dd4bf` | `iot` | IoT edge | `feeder-iot-01` |
-| <span style="color:#38bdf8">●</span> `#38bdf8` | `flood` | Crue | `vic-meuse-01`, `gfm-flood-01`, `nws-flood-01`, `ea-flood-01` +18 |
+| <span style="color:#38bdf8">●</span> `#38bdf8` | `flood` | Crue | `vic-meuse-01`, `gfm-flood-01`, `nws-flood-01`, `ea-flood-01` +19 |
 | <span style="color:#ea580c">●</span> `#ea580c` | `effis` | Feux EFFIS | `effis-01` |
 | <span style="color:#ef4444">●</span> `#ef4444` | `volcano` | Volcans | `usgs-volcano-01` |
 | <span style="color:#0891b2">●</span> `#0891b2` | `ais` | AIS public | `fintraffic-ais-01`, `kystverket-ais-01` |
@@ -42,6 +46,7 @@ Le catalogue définit actuellement 49 couches et 955 appareils configurés. Les 
 | <span style="color:#0ea5e9">●</span> `#0ea5e9` | `adsb` | ADS-B public | `adsb-lol-01` |
 | <span style="color:#94a3b8">●</span> `#94a3b8` | `smoke` | Fumée | `hms-smoke-01` |
 | <span style="color:#06b6d4">●</span> `#06b6d4` | `water_quality` | Qualité de l’eau | `usgs-wq-01` |
+| <span style="color:#0d9488">●</span> `#0d9488` | `groundwater` | Eaux souterraines | `usgs-groundwater-01` |
 | <span style="color:#1d4ed8">●</span> `#1d4ed8` | `dart` | Bouées DART | `dart-21414`, `dart-21415`, `dart-21416`, `dart-21418` +39 |
 | <span style="color:#0ea5e9">●</span> `#0ea5e9` | `precipitation` | Précipitations | `imerg-01` |
 | <span style="color:#22c55e">●</span> `#22c55e` | `radar` | État NEXRAD | `nexrad-status-01` |

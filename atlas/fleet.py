@@ -48,7 +48,7 @@ EVENT_LAYERS = frozenset({
     "quake", "fire", "radiation", "jamming", "gnss", "traffic",
     "events", "spacewx", "lightning", "alerts", "argo", "iot",
     "flood", "effis", "volcano", "cyclone", "adsb", "smoke", "water_quality",
-    "precipitation", "radar", "sea_ice",
+    "precipitation", "radar", "sea_ice", "groundwater",
     "road", "rail", "drought", "uv", "weather",
 })
 # Default-on LIVE event pins shown even before a fleet read. Traffic/IoT feeders are
@@ -57,7 +57,7 @@ CATALOG_EVENT_LAYERS = frozenset({
     "quake", "fire", "radiation", "jamming", "gnss",
     "events", "spacewx", "lightning", "alerts", "argo",
     "flood", "effis", "volcano", "cyclone", "smoke", "water_quality",
-    "precipitation", "radar", "sea_ice",
+    "precipitation", "radar", "sea_ice", "groundwater",
     "road", "rail", "drought", "uv",
 })
 # Cluster layers fanned into map_points / paid SKU pins. Space weather carries
@@ -68,14 +68,14 @@ DENSE_EVENT_LAYERS = frozenset({
     "fire", "radiation", "quake", "jamming", "gnss",
     "events", "spacewx", "lightning", "alerts", "argo", "flood", "effis", "volcano",
     "ais", "tsunami", "cyclone", "adsb", "smoke", "water_quality",
-    "precipitation", "radar", "sea_ice",
+    "precipitation", "radar", "sea_ice", "groundwater",
     "road", "rail", "drought", "uv", "weather",
 })
 DENSE_PIN_PREFIXES = (
     "firms-hs-", "rad-hs-", "quake-ev-", "jam-ev-",
     "eonet-ev-", "swpc-hs-", "glm-hs-", "cap-ev-", "flood-hs-", "effis-hs-", "volc-ev-",
     "ais-ves-", "tsu-ev-", "cyc-ev-", "adsb-ac-", "smoke-poly-", "usgs-wq-site-",
-    "imerg-cell-", "nexrad-site-", "sea-ice-cell-",
+    "imerg-cell-", "nexrad-site-", "sea-ice-cell-", "usgs-gw-well-",
     "road-st-", "rail-tr-", "drought-st-",
     "uv-us-", "wx-ie-",
     "argo-wmo-",
@@ -263,8 +263,16 @@ CLUSTER_META: dict[str, dict[str, Any]] = {
     },
     "flood": {
         "prefix": "flood-hs",
-        "keys": ("severity_score", "discharge_m3s", "latitude", "longitude"),
-        "provenance": ("site", "status", "event", "headline", "severity", "area"),
+        "keys": (
+            "severity_score", "discharge_m3s", "latitude", "longitude",
+            "flood_gage_level_m", "flood_threshold_m", "flood_exceedance_m",
+        ),
+        "stable_id": "rtfi_point_id",
+        "provenance": (
+            "site", "status", "event", "headline", "severity", "area", "rtfi_point_id",
+            "gage_id", "gage_series_id", "gage_parameter_code", "observed_at", "claim_class",
+            "evidence_boundary",
+        ),
     },
     "effis": {
         "prefix": "effis-hs",
@@ -328,6 +336,13 @@ CLUSTER_META: dict[str, dict[str, Any]] = {
             "dissolved_oxygen_mg_l_observed_at",
             "specific_conductance_us_cm_observed_at",
         ),
+    },
+    "groundwater": {
+        "prefix": "usgs-gw-well",
+        "keys": ("groundwater_depth_m", "observation_unix", "approval_status", "qualifier"),
+        "kind": "point",
+        "stable_id": "station_id",
+        "provenance": ("station_id", "observed_at", "parameter_code", "reference", "time_series_id"),
     },
     "precipitation": {
         "prefix": "imerg-cell",

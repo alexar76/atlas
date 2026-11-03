@@ -336,6 +336,7 @@
     adsb: true,
     smoke: true,
     water_quality: true,
+    groundwater: true,
     dart: true,
     precipitation: true,
     radar: true,

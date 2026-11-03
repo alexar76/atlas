@@ -8,7 +8,11 @@ Esta leyenda se genera desde `atlas.stations.LAYER_META` y `STATION_CATALOG`; no
 
 El color identifica la capa, no la gravedad ni la salud del sensor. Algunas capas relacionadas comparten color intencionadamente; se distinguen por la clave y el filtro de capa. Los estados LIVE/SIM y la disponibilidad se muestran por separado.
 
-El catálogo define actualmente 49 capas y 955 dispositivos configurados. Las fuentes densas y de eventos pueden crear puntos de lectura adicionales en ejecución.
+El catálogo define actualmente 50 capas y 957 dispositivos configurados. Las fuentes densas y de eventos pueden crear puntos de lectura adicionales en ejecución.
+
+El mapa completo también ofrece **Imágenes de radar de NOAA**, un ráster de reflectividad NOAA/NWS MRMS fuera del recuento de capas de datos. La fila `radar` muestra el estado de las estaciones NEXRAD.
+
+En `flood`, `usgs-rtfi-01` identifica puntos evaluados donde se ha superado provisionalmente un umbral. La capa `groundwater` muestra la profundidad bajo el terreno local de tres pozos piloto del USGS.
 
 | Color | Clave de capa | Qué representa | Ejemplos de device_id |
 |---|---|---|---|
@@ -33,7 +37,7 @@ El catálogo define actualmente 49 capas y 955 dispositivos configurados. Las fu
 | <span style="color:#22d3ee">●</span> `#22d3ee` | `argo` | Flotadores Argo | `argo-01` |
 | <span style="color:#c084fc">●</span> `#c084fc` | `geomag` | Geomagnetismo | `usgs-geomag-01`, `usgs-geomag-brw`, `usgs-geomag-bsl`, `usgs-geomag-cmo` +10 |
 | <span style="color:#2dd4bf">●</span> `#2dd4bf` | `iot` | IoT edge | `feeder-iot-01` |
-| <span style="color:#38bdf8">●</span> `#38bdf8` | `flood` | Inundación | `vic-meuse-01`, `gfm-flood-01`, `nws-flood-01`, `ea-flood-01` +18 |
+| <span style="color:#38bdf8">●</span> `#38bdf8` | `flood` | Inundación | `vic-meuse-01`, `gfm-flood-01`, `nws-flood-01`, `ea-flood-01` +19 |
 | <span style="color:#ea580c">●</span> `#ea580c` | `effis` | Incendios EFFIS | `effis-01` |
 | <span style="color:#ef4444">●</span> `#ef4444` | `volcano` | Volcanes | `usgs-volcano-01` |
 | <span style="color:#0891b2">●</span> `#0891b2` | `ais` | AIS público | `fintraffic-ais-01`, `kystverket-ais-01` |
@@ -42,6 +46,7 @@ El catálogo define actualmente 49 capas y 955 dispositivos configurados. Las fu
 | <span style="color:#0ea5e9">●</span> `#0ea5e9` | `adsb` | ADS-B público | `adsb-lol-01` |
 | <span style="color:#94a3b8">●</span> `#94a3b8` | `smoke` | Humo | `hms-smoke-01` |
 | <span style="color:#06b6d4">●</span> `#06b6d4` | `water_quality` | Calidad del agua | `usgs-wq-01` |
+| <span style="color:#0d9488">●</span> `#0d9488` | `groundwater` | Aguas subterráneas | `usgs-groundwater-01` |
 | <span style="color:#1d4ed8">●</span> `#1d4ed8` | `dart` | Boyas DART | `dart-21414`, `dart-21415`, `dart-21416`, `dart-21418` +39 |
 | <span style="color:#0ea5e9">●</span> `#0ea5e9` | `precipitation` | Precipitación | `imerg-01` |
 | <span style="color:#22c55e">●</span> `#22c55e` | `radar` | Estado NEXRAD | `nexrad-status-01` |

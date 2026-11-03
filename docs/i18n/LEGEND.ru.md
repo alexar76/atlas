@@ -8,7 +8,11 @@
 
 Цвет обозначает слой, а не опасность или исправность датчика. Некоторые родственные слои намеренно используют одинаковый цвет; различайте их по ключу и фильтру слоя. Состояния LIVE/SIM и доступность показываются отдельно.
 
-Сейчас каталог задаёт 49 слоёв и 955 настроенных устройств. Событийные и плотные источники могут добавлять точки показаний во время работы.
+Сейчас каталог задаёт 50 слоёв и 957 настроенных устройств. Событийные и плотные источники могут добавлять точки показаний во время работы.
+
+На полной карте также доступен **«Радар NOAA»**. Это растр отражаемости NOAA/NWS MRMS, который не входит в число слоёв данных. В строке `radar` ниже показано состояние станций NEXRAD.
+
+В слое `flood` источник `usgs-rtfi-01` показывает обследованные точки с предварительным превышением порога. Слой `groundwater` показывает глубину от местной поверхности земли в трёх пилотных скважинах USGS.
 
 | Цвет | Ключ слоя | Что изображает | Примеры device_id |
 |---|---|---|---|
@@ -33,7 +37,7 @@
 | <span style="color:#22d3ee">●</span> `#22d3ee` | `argo` | Арго-буи | `argo-01` |
 | <span style="color:#c084fc">●</span> `#c084fc` | `geomag` | Геомагнетизм | `usgs-geomag-01`, `usgs-geomag-brw`, `usgs-geomag-bsl`, `usgs-geomag-cmo` +10 |
 | <span style="color:#2dd4bf">●</span> `#2dd4bf` | `iot` | IoT (edge) | `feeder-iot-01` |
-| <span style="color:#38bdf8">●</span> `#38bdf8` | `flood` | Паводок | `vic-meuse-01`, `gfm-flood-01`, `nws-flood-01`, `ea-flood-01` +18 |
+| <span style="color:#38bdf8">●</span> `#38bdf8` | `flood` | Паводок | `vic-meuse-01`, `gfm-flood-01`, `nws-flood-01`, `ea-flood-01` +19 |
 | <span style="color:#ea580c">●</span> `#ea580c` | `effis` | EFFIS пожары | `effis-01` |
 | <span style="color:#ef4444">●</span> `#ef4444` | `volcano` | Вулканы | `usgs-volcano-01` |
 | <span style="color:#0891b2">●</span> `#0891b2` | `ais` | AIS (открытый) | `fintraffic-ais-01`, `kystverket-ais-01` |
@@ -42,6 +46,7 @@
 | <span style="color:#0ea5e9">●</span> `#0ea5e9` | `adsb` | ADS-B (открытый) | `adsb-lol-01` |
 | <span style="color:#94a3b8">●</span> `#94a3b8` | `smoke` | Дым | `hms-smoke-01` |
 | <span style="color:#06b6d4">●</span> `#06b6d4` | `water_quality` | Качество воды | `usgs-wq-01` |
+| <span style="color:#0d9488">●</span> `#0d9488` | `groundwater` | Грунтовые воды | `usgs-groundwater-01` |
 | <span style="color:#1d4ed8">●</span> `#1d4ed8` | `dart` | Буи DART | `dart-21414`, `dart-21415`, `dart-21416`, `dart-21418` +39 |
 | <span style="color:#0ea5e9">●</span> `#0ea5e9` | `precipitation` | Осадки | `imerg-01` |
 | <span style="color:#22c55e">●</span> `#22c55e` | `radar` | Статус NEXRAD | `nexrad-status-01` |

@@ -51,6 +51,11 @@
         <h2 data-i18n="shell.layers">Layers</h2>
         <button type="button" class="ghost" id="btn-refresh" title="Refresh viewport" aria-label="Refresh viewport" data-i18n-title="shell.refresh" data-i18n-aria="shell.refresh">↻</button>
       </div>
+      <label class="layer radar-imagery">
+        <input type="checkbox" id="radar-imagery-toggle" aria-describedby="radar-imagery-status" />
+        <span class="name" data-i18n="radar.imagery">NOAA radar imagery</span>
+        <span id="radar-imagery-status" class="count" aria-live="polite"></span>
+      </label>
       <div class="layers" id="layers"></div>
       <div class="panel-head sub">
         <h2 data-i18n="shell.inView">In view</h2>
@@ -82,10 +87,11 @@
   </div>
 
   <script src="/assets/vendor/maplibre-gl/maplibre-gl.js?v=5.24.0"></script>
-  <script src="/assets/i18n.js?v=20260827a"></script>
+  <script src="/assets/i18n.js?v=20261103a"></script>
   <script src="/assets/theme.js?v=20260813a"></script>
   <script src="/assets/map-lib.js?v=20260827b"></script>
   <script src="/assets/atlas.js?v=20260827b"></script>
+  <script src="/assets/radar-imagery.js?v=20261103c"></script>
   <script src="/assets/assistant.js?v=20260813a"></script>
   <script>
     AtlasI18n.applyStatic();
@@ -95,6 +101,7 @@
       root: document.getElementById("app"),
       getLocale: atlasLocale,
     });
+    AtlasRadarImagery.mount(mapApi.map);
     AtlasAI.mount({
       getBbox: () => {
         if (!mapApi || !mapApi.map) return null;
