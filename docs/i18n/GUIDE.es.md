@@ -32,10 +32,10 @@ El comprador **por lo general** no pasa lat/lon a GAIA invoke — anclajes del o
 
 GAIA vende **lecturas** (`gaia.*.read@v1`). ATLAS es el **mapa** (capas/pines) y los **watchboxes**.
 
-La lista actual de las **50 capas**, sus colores exactos, significado y ejemplos
+La lista actual de las **53 capas**, sus colores exactos, significado y ejemplos
 de dispositivos está en la [leyenda del mapa ATLAS](LEGEND.es.md). Se genera desde
 el mismo catálogo de ejecución que el mapa. El catálogo contiene actualmente
-**957 dispositivos configurados**; las fuentes densas y de eventos pueden crear puntos
+**970 dispositivos configurados**; las fuentes densas y de eventos pueden crear puntos
 de lectura adicionales en ejecución.
 
 | Capa | device_id típicos | Notas |
@@ -58,6 +58,14 @@ de lectura adicionales en ejecución.
 | Ciclones tropicales | `nhc-cyclone-01` | NHC/CPHC AL+EP+CP — no JTWC |
 | Calidad del agua | `usgs-wq-01` | Observaciones latest-continuous frescas (48 h), paginadas y unidas a USGS monitoring-locations; solo estaciones con parámetros requeridos, una estación = un punto; Approved/Provisional + qualifiers; historial persistente y uptime por sondeos |
 | Aguas subterráneas | `usgs-groundwater-01` | Tres pozos piloto del USGS en Maine, Nueva York y Kentucky. Profundidad en metros bajo la superficie local del terreno, con signo positivo hacia abajo. ATLAS muestra la hora de medición y el estado de aprobación del USGS. Las observaciones caducan tras 24 horas. |
+| Aguas subterráneas de Hub’Eau | `hubeau-groundwater-01` | Ocho pozos piloto franceses informan de la profundidad desde la referencia de medición y de la cota del agua en NGF. La ficha muestra la hora y la referencia de cada valor. |
+| Pronóstico fluvial NOAA NWPS | `nwps-pttp1`, `nwps-rmdv2`, `nwps-vckm6`, `nwps-dlrt2` | La ficha muestra el nivel más alto entre los puntos disponibles del pronóstico de las próximas 72 horas, la hora de emisión y la hora del máximo. Las alturas se refieren al datum local de la estación. |
+| Mareógrafos de Environment Agency | `ea-tide-e70039`, `ea-tide-e72639`, `ea-tide-e70539`, `ea-tide-e70739`, `ea-tide-e73839` | Las estaciones costeras del Reino Unido miden el nivel medio del mar en metros sobre Ordnance Datum Newlyn (mAOD). |
+| Incidencias viales de Fintraffic | `fintraffic-road-announcements-01`, `fintraffic-roadworks-01` | Los avisos y las obras en Finlandia muestran el tramo afectado y el periodo de validez publicado. |
+| NOAA G-AIRMET | `awc-gairmet-01` | Los polígonos y líneas de previsión aeronáutica para Estados Unidos muestran el peligro y las horas de emisión y validez. |
+| Avisos y cortes de carretera de NDW | `ndw-road-srti-01`, `ndw-road-closures-01` | La capa `road_events` muestra avisos de seguridad vial y cortes temporales en los Países Bajos con la geometría de los tramos afectados. Cada publicación firmada caduca cinco minutos después de su emisión. Cada medida tiene su propio periodo de validez. [NDW · CC0 1.0](https://docs.ndw.nu/algemeen/data-gebruiksvoorwaarden/) |
+| Boyas de oleaje del FMI en el Báltico | `fmi-marine-103976`, `fmi-marine-108126`, `fmi-marine-108499`, `fmi-marine-134220`, `fmi-marine-134221`, `fmi-marine-134246` | Seis boyas en `marine` informan de la altura significativa de las olas. La ficha incluye el periodo de pico, la dirección de procedencia del oleaje y la temperatura del agua cuando se midieron a la misma hora. La marca de tiempo indica el inicio del muestreo del oleaje. Las observaciones caducan a las dos horas. [FMI · CC BY 4.0](https://en.ilmatieteenlaitos.fi/download-observations-questions) |
+| Manto nival de USDA NRCS SNOTEL | `snotel-335`, `snotel-415` | La capa `snow` muestra el espesor de la nieve y su equivalente en agua en centímetros a partir de mediciones horarias en Berthoud Summit y Copper Mountain, Colorado. GAIA empareja las mediciones de la misma hora que han superado el control automático de calidad y tienen como máximo seis horas de antigüedad. [USDA NRCS · dominio público de EE. UU.](https://catalog.data.gov/dataset/snowpack-telemetry-network-snotel) |
 | Puntos de posible inundación | `usgs-rtfi-01` | El nivel de una estación del USGS supera el umbral levantado para una carretera, puente, edificio u otro punto. Es un indicio preliminar de posible inundación. Un resultado vacío solo indica que ningún punto cubierto cumple los criterios. |
 | DART | `noaa-dart-01`, `dart-*` | Las 43 estaciones activas del directorio oficial NDBC fijado |
 | EPA RadNet | `radnet-*` | Las 140 coordenadas oficiales de monitores EPA, no tres ciudades de demostración |

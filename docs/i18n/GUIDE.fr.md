@@ -32,10 +32,10 @@ L’acheteur **en général** ne passe pas lat/lon à GAIA invoke. Exceptions su
 
 GAIA vend les **lectures** (`gaia.*.read@v1`). ATLAS = **carte** (couches/pins) + **watchboxes**.
 
-La liste actuelle des **50 couches**, leurs couleurs exactes, leur signification
+La liste actuelle des **53 couches**, leurs couleurs exactes, leur signification
 et des exemples d’appareils figure dans la [légende de la carte ATLAS](LEGEND.fr.md).
 Elle est générée depuis le même catalogue d’exécution que la carte. Le catalogue
-contient actuellement **957 appareils configurés** ; les flux denses et événementiels
+contient actuellement **970 appareils configurés** ; les flux denses et événementiels
 peuvent créer des points de lecture supplémentaires à l’exécution.
 
 | Couche | device_id typiques | Notes |
@@ -58,6 +58,14 @@ peuvent créer des points de lecture supplémentaires à l’exécution.
 | Cyclones tropicaux | `nhc-cyclone-01` | NHC/CPHC AL+EP+CP — pas JTWC |
 | Qualité de l’eau | `usgs-wq-01` | Observations latest-continuous fraîches (48 h), paginées et jointes à USGS monitoring-locations ; seules stations aux paramètres requis, une station = un point ; Approved/Provisional + qualifiers ; historique persistant et uptime par sondages |
 | Eaux souterraines | `usgs-groundwater-01` | Trois puits pilotes de l’USGS dans le Maine, l’État de New York et le Kentucky. Profondeur en mètres sous la surface locale du sol, positive vers le bas. ATLAS affiche l’heure de mesure et le statut de validation USGS. Les observations expirent au bout de 24 heures. |
+| Nappes de Hub’Eau | `hubeau-groundwater-01` | Huit piézomètres pilotes français indiquent la profondeur sous le repère de mesure et l’altitude de l’eau en NGF. La fiche indique l’heure du relevé et le repère de chaque valeur. |
+| Prévisions fluviales NOAA NWPS | `nwps-pttp1`, `nwps-rmdv2`, `nwps-vckm6`, `nwps-dlrt2` | La fiche indique le niveau maximal parmi les points disponibles de la prévision des prochaines 72 heures, l’heure d’émission et celle du pic. Les hauteurs se rapportent au repère local de la station. |
+| Marégraphes de l’Environment Agency | `ea-tide-e70039`, `ea-tide-e72639`, `ea-tide-e70539`, `ea-tide-e70739`, `ea-tide-e73839` | Les stations côtières du Royaume-Uni mesurent le niveau moyen de la mer en mètres au-dessus du repère Ordnance Datum Newlyn (mAOD). |
+| Événements routiers Fintraffic | `fintraffic-road-announcements-01`, `fintraffic-roadworks-01` | Les avis et travaux en Finlande indiquent les tronçons concernés et la période de validité publiée. |
+| NOAA G-AIRMET | `awc-gairmet-01` | Les polygones et lignes des prévisions aéronautiques américaines indiquent le danger et les heures d’émission et de validité. |
+| Alertes et fermetures routières NDW | `ndw-road-srti-01`, `ndw-road-closures-01` | La couche `road_events` affiche les alertes de sécurité routière et les fermetures temporaires aux Pays-Bas avec la géométrie des tronçons concernés. Chaque publication signée expire cinq minutes après sa diffusion. Chaque mesure de circulation a sa propre période de validité. [NDW · CC0 1.0](https://docs.ndw.nu/algemeen/data-gebruiksvoorwaarden/) |
+| Bouées de houle du FMI en mer Baltique | `fmi-marine-103976`, `fmi-marine-108126`, `fmi-marine-108499`, `fmi-marine-134220`, `fmi-marine-134221`, `fmi-marine-134246` | Six bouées de la couche `marine` fournissent la hauteur significative des vagues. La fiche indique aussi la période de pic, la direction d’où viennent les vagues et la température de l’eau lorsque ces valeurs ont été mesurées au même moment. L’horodatage marque le début de la mesure des vagues. Les observations expirent au bout de deux heures. [FMI · CC BY 4.0](https://en.ilmatieteenlaitos.fi/download-observations-questions) |
+| Enneigement USDA NRCS SNOTEL | `snotel-335`, `snotel-415` | La couche `snow` affiche les mesures horaires de l’épaisseur de neige et de son équivalent en eau en centimètres à Berthoud Summit et Copper Mountain, dans le Colorado. GAIA associe les mesures de la même heure qui ont passé le contrôle automatique de qualité et datent de six heures au plus. [USDA NRCS · domaine public américain](https://catalog.data.gov/dataset/snowpack-telemetry-network-snotel) |
 | Points potentiellement inondés | `usgs-rtfi-01` | Le niveau d’une station USGS voisine dépasse le seuil mesuré sur le terrain pour une route, un pont, un bâtiment ou un autre site. C’est un indice provisoire d’inondation possible. Un flux vide indique seulement qu’aucun point couvert ne remplit les critères. |
 | DART | `noaa-dart-01`, `dart-*` | Les 43 stations actives du répertoire officiel NDBC figé |
 | EPA RadNet | `radnet-*` | Les 140 coordonnées officielles des moniteurs EPA, pas trois villes de démonstration |

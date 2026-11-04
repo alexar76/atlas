@@ -50,10 +50,10 @@ Station networks use official registry coordinates. Coordinate/grid capabilities
 
 ## Layers & stations
 
-The canonical, current list of all **50 data layers**, their exact colours, localized
+The canonical, current list of all **53 data layers**, their exact colours, localized
 meaning, and example device anchors is the [ATLAS map legend](LEGEND.md). It is
 generated from the same runtime catalog as the map. The catalog currently has
-**957 configured devices**; dense/event feeds can expand into additional reading
+**970 configured devices**; dense/event feeds can expand into additional reading
 points at runtime.
 
 GAIA sells the **readings** (`gaia.*.read@v1`). ATLAS is where those devices
@@ -89,6 +89,14 @@ appear as **map layers / pins** and where **watchboxes** run.
 | Tropical cyclones | `nhc-cyclone-01` | NHC/CPHC CurrentStorms (U.S. PD) — Atlantic + EPac + CPac; not JTWC; empty season → offline |
 | Water quality | `usgs-wq-01` | Fresh (48h default) paginated latest-continuous observations joined to USGS monitoring-locations; only parameter-qualified stations, one station = one point; per-parameter Approved/Provisional + qualifiers; bounded durable history and poll-based uptime |
 | Groundwater | `usgs-groundwater-01` | Three USGS pilot wells in Maine, New York, and Kentucky. Depth in metres below local land surface, positive downward. ATLAS shows the observation time and the USGS approval status. Observations expire after 24 hours. |
+| Hub’Eau groundwater | `hubeau-groundwater-01` | Eight French pilot wells report depth below the measuring reference and water elevation in NGF. The card shows the observation time and the reference for each value. |
+| NOAA NWPS river forecast | `nwps-pttp1`, `nwps-rmdv2`, `nwps-vckm6`, `nwps-dlrt2` | The card shows the highest level among the available forecast points in the next 72 hours, the issue time and the time of the peak. Heights use the local gauge datum. |
+| Environment Agency tide gauges | `ea-tide-e70039`, `ea-tide-e72639`, `ea-tide-e70539`, `ea-tide-e70739`, `ea-tide-e73839` | UK coastal stations report mean sea level in metres above Ordnance Datum Newlyn (mAOD). |
+| Fintraffic road events | `fintraffic-road-announcements-01`, `fintraffic-roadworks-01` | Finnish road notices and works display the affected road geometry and the source validity period. |
+| NOAA G-AIRMET | `awc-gairmet-01` | U.S. aviation forecast polygons and lines carry their hazard, issue time and valid time. |
+| NDW road notices and closures | `ndw-road-srti-01`, `ndw-road-closures-01` | The `road_events` layer shows Dutch road safety notices and temporary closures with their affected geometry. Each signed snapshot expires five minutes after publication. Each action also has its own validity window. [NDW · CC0 1.0](https://docs.ndw.nu/algemeen/data-gebruiksvoorwaarden/) |
+| FMI Baltic wave buoys | `fmi-marine-103976`, `fmi-marine-108126`, `fmi-marine-108499`, `fmi-marine-134220`, `fmi-marine-134221`, `fmi-marine-134246` | Six buoys in `marine` report significant wave height. The card adds peak period, the direction waves come from and water temperature when measured at the same time. The timestamp marks the start of wave sampling. Readings expire after two hours. [FMI · CC BY 4.0](https://en.ilmatieteenlaitos.fi/download-observations-questions) |
+| USDA NRCS SNOTEL snowpack | `snotel-335`, `snotel-415` | The `snow` layer shows hourly snow depth and snow water equivalent in centimetres at Berthoud Summit and Copper Mountain, Colorado. GAIA pairs measurements from the same hour that pass automated quality checks and are up to six hours old. [USDA NRCS · U.S. public domain](https://catalog.data.gov/dataset/snowpack-telemetry-network-snotel) |
 | Flood impact locations | `usgs-rtfi-01` | A nearby USGS gauge exceeded the surveyed threshold for a road, bridge, building, or other site. Preliminary indication of possible inundation. An empty feed only means no qualifying points in the covered sites. |
 | DART | `noaa-dart-01`, `dart-*` | All 43 active stations from the checked-in official NDBC directory |
 | EPA RadNet | `radnet-*` | All 140 official EPA monitor coordinates, not three demo cities |

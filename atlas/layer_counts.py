@@ -44,6 +44,8 @@ LAYER_COUNT_KIND: dict[str, str] = {
     "radar": "observations",
     "sea_ice": "observations",
     "groundwater": "observations",
+    "road_events": "events",
+    "aviation_hazards": "events",
 }
 
 CLUSTER_COUNT_KINDS = frozenset({"detections", "observations", "events", "floats"})

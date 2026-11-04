@@ -52,6 +52,7 @@
       }
     } catch (_) { /* malformed URL: keep the complete map */ }
     let snapshot = null;
+    let sourceClock = null;
     let map = null;
     let es = null;
     let viewportBusy = false;
@@ -65,6 +66,7 @@
     const pointCache = new Map();
     const regionCache = new Map(); // key → merged-at ms
     const REGION_TTL_MS = 10 * 60 * 1000;
+    const ROAD_REGION_TTL_MS = 2 * 60 * 1000;
     const EVENT_PIN_TTL_MS = 15 * 60 * 1000;
     // Comfortably under the pin TTL so event layers are re-merged before they expire.
     const EVENT_PIN_REFRESH_MS = 5 * 60 * 1000;
@@ -544,15 +546,33 @@
       return parents;
     }
 
+    function expiredSourcePoint(point, now) {
+      if (point.layer === "road_events" || point.layer === "aviation_hazards") {
+        return Date.parse(point.valid_until || point.valid_at) <= now
+          || Date.parse(point.source_expires_at) <= now
+          || (point.layer === "road_events" && Date.parse(point.source_read_at) + 30 * 60 * 1000 <= now);
+      }
+      const id = String(point.id || "");
+      const hours = id.startsWith("fmi-marine-") ? 2 : id.startsWith("snotel-") ? 6 : 0;
+      const observed = point.values?.observation_unix;
+      return hours > 0 && Number.isFinite(observed) && (observed + hours * 3600) * 1000 <= now;
+    }
+
+    function currentSourceTime() {
+      return sourceClock ? sourceClock.utc + performance.now() - sourceClock.monotonic : Date.now();
+    }
+
     function actionableLayerCountsInView() {
       const counts = Object.create(null);
       if (!map) return counts;
       const bbox = currentBbox();
       const now = Date.now();
+      const serverNow = currentSourceTime();
       const expandedParents = expandedParentIds(now);
       for (const item of pointCache.values()) {
         if (!item || !item.layer || !Number.isFinite(item.lat) || !Number.isFinite(item.lon)) continue;
         if (item.cluster_parent) continue;
+        if (expiredSourcePoint(item, serverNow)) continue;
         if (item.kind === "event" && item._at && now - item._at > EVENT_PIN_TTL_MS) continue;
         if (expandedParents.has(String(item.id))) continue;
         if (!(item.online || item.has_reading)) continue;
@@ -719,8 +739,15 @@
       for (const p of points || []) {
         if (!p || !p.id) continue;
         if (!Number.isFinite(p.lat) || !Number.isFinite(p.lon)) continue;
+        const id = String(p.id);
+        if ((p.layer === "road_events" || p.layer === "aviation_hazards") && p.cluster_parent
+            && p.hotspot_count === 0 && pointCache.get(id)?.hotspot_count !== 0) {
+          for (const [key, point] of pointCache) {
+            if (point.parent_id === id) pointCache.delete(key);
+          }
+        }
         p._at = at;
-        pointCache.set(String(p.id), p);
+        pointCache.set(id, p);
       }
     }
 
@@ -734,11 +761,12 @@
       const z = map ? map.getZoom() : 3;
       const keys = regionKeysForBbox(b, z);
       const now = Date.now();
+      const ttl = enabled.road_events ? ROAD_REGION_TTL_MS : REGION_TTL_MS;
       return (
         keys.length > 0 &&
         keys.every((k) => {
           const at = regionCache.get(k);
-          return at && now - at < REGION_TTL_MS;
+          return at && now - at < ttl;
         })
       );
     }
@@ -753,10 +781,12 @@
       };
       const out = [];
       const now = Date.now();
+      const serverNow = currentSourceTime();
       const expandedParents = expandedParentIds(now);
       for (const s of pointCache.values()) {
         if (enabled[s.layer] === false) continue;
         if (s.cluster_parent) continue;
+        if (expiredSourcePoint(s, serverNow)) continue;
         // Event detections roll (FIRMS is a 24h feed) — drop ghosts the server
         // stopped sending instead of painting them forever.
         if (s.kind === "event" && s._at && now - s._at > EVENT_PIN_TTL_MS) continue;
@@ -781,11 +811,21 @@
       }
     }
 
+    function rememberSourceClock(snap) {
+      const utc = Date.parse(snap?.generated_at);
+      if (Number.isFinite(utc) && (!sourceClock || utc > sourceClock.utc)) {
+        sourceClock = { utc, monotonic: performance.now() };
+      }
+    }
+
     // Gate on the map "load" event (sources/layers can be added), NOT on
     // isStyleLoaded(): the latter stays false while style changes are pending,
     // so snapshots used to be dropped with no retry (blank pins, HUD stuck).
     function applySnapshot(snap) {
-      if (snap) snapshot = snap;
+      if (snap) {
+        snapshot = snap;
+        rememberSourceClock(snap);
+      }
       if (!snapshot) return;
       // Catalog stations seed the cache; densified map_points arrive via viewport.
       mergePoints(snapshot.stations || []);
@@ -848,6 +888,7 @@
         markRegions(bbox);
         if (data.snapshot) {
           snapshot = data.snapshot;
+          rememberSourceClock(snapshot);
           mergePoints(data.snapshot.stations || []);
         }
         mergePoints(data.map_points || []);
@@ -1231,6 +1272,14 @@
       if (!f) return;
       openDetail(f.properties.id);
     });
+    map.on("click", (e) => {
+      const shapes = ["transport-events-line", "transport-events-fill"];
+      const layers = ["stations-core", "gnss-cells-fill", "quakes-core", ...shapes]
+        .filter((id) => map.getLayer(id));
+      if (!layers.length) return;
+      const hit = map.queryRenderedFeatures(e.point, { layers })[0];
+      if (hit && shapes.includes(hit.layer.id)) openDetail(hit.properties.id);
+    });
     map.on("mouseenter", "stations-core", () => { map.getCanvas().style.cursor = "pointer"; });
     map.on("mouseleave", "stations-core", () => { map.getCanvas().style.cursor = ""; });
     map.on("mouseenter", "gnss-cells-fill", () => { map.getCanvas().style.cursor = "pointer"; });
@@ -1307,14 +1356,18 @@
     // under a header still counting 115,683 detections. Station pins have no TTL,
     // which is why those stayed and made it look like a fires-only outage.
     //
-    // Clearing the bbox key lets the region cache (10 min, i.e. shorter than the
-    // pin TTL) decide whether an actual request goes out, so this costs nothing
-    // on a warm region and never touches the force budget.
+    // A displayed road layer needs a shorter cadence for NDW's five-minute
+    // snapshots. The region cache still controls when a request goes out.
+    let lastEventRefreshAt = Date.now();
     setInterval(() => {
       if (typeof document !== "undefined" && document.hidden) return;
+      const now = Date.now();
+      const interval = enabled.road_events ? 60 * 1000 : EVENT_PIN_REFRESH_MS;
+      if (now - lastEventRefreshAt < interval) return;
+      lastEventRefreshAt = now;
       lastBboxKey = "";
       refreshViewport(false);
-    }, EVENT_PIN_REFRESH_MS);
+    }, 60 * 1000);
 
     return {
       map,

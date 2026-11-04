@@ -32,9 +32,9 @@ ATLAS 是生态中的**传感器地图**：天气、空气质量、潮汐、河�
 
 GAIA 出售**读数**（`gaia.*.read@v1`）。ATLAS 是**地图**（图层/针脚）与 **watchboxes**。
 
-全部 **50 个图层**的当前列表、精确颜色、含义和设备示例见
+全部 **53 个图层**的当前列表、精确颜色、含义和设备示例见
 [ATLAS 地图图例](LEGEND.zh.md)。该图例与地图使用同一运行时目录生成。
-目录当前包含 **957 个已配置设备**；事件和密集数据源可在运行时创建更多读数点。
+目录当前包含 **970 个已配置设备**；事件和密集数据源可在运行时创建更多读数点。
 
 | 图层 | 典型 device_id | 说明 |
 |------|----------------|------|
@@ -56,6 +56,14 @@ GAIA 出售**读数**（`gaia.*.read@v1`）。ATLAS 是**地图**（图层/针�
 | 热带气旋 | `nhc-cyclone-01` | NHC/CPHC AL+EP+CP — 不是 JTWC |
 | 水质 | `usgs-wq-01` | 新鲜（48 小时）分页 latest-continuous 观测联接 USGS monitoring-locations；仅保留所需参数站点，一站一点；逐参数 Approved/Provisional + qualifiers；持久历史及按轮询计算的 uptime |
 | 地下水 | `usgs-groundwater-01` | 覆盖缅因州、纽约州和肯塔基州的三个 USGS 试点井。深度以当地地表为基准，单位为米，向下为正。ATLAS 显示测量时间和 USGS 审核状态。超过 24 小时的观测会被隐藏。 |
+| Hub’Eau 地下水 | `hubeau-groundwater-01` | 法国八口试点井提供从测量基准点到水面的深度和以 NGF 表示的水面高程。卡片会显示观测时间和每项数值的基准。 |
+| NOAA NWPS 河流水位预报 | `nwps-pttp1`, `nwps-rmdv2`, `nwps-vckm6`, `nwps-dlrt2` | 卡片显示未来 72 小时内可用预报点的最高水位、发布时间和峰值时间。水位以该水文站的本地基准为准。 |
+| 英国环境署验潮站 | `ea-tide-e70039`, `ea-tide-e72639`, `ea-tide-e70539`, `ea-tide-e70739`, `ea-tide-e73839` | 英国沿海站点以米为单位提供相对于 Ordnance Datum Newlyn 基准的平均海平面高度（mAOD）。 |
+| Fintraffic 道路事件 | `fintraffic-road-announcements-01`, `fintraffic-roadworks-01` | 芬兰道路通告和施工记录显示受影响路段及源数据中的有效时段。 |
+| NOAA G-AIRMET | `awc-gairmet-01` | 美国航空预报的多边形和线条标注危险类型、发布时间和有效时间。 |
+| NDW 道路通告和临时封闭 | `ndw-road-srti-01`, `ndw-road-closures-01` | `road_events` 图层显示荷兰道路安全通告、临时封闭及受影响路段的几何形状。签名快照在发布五分钟后过期。每项交通措施另有自己的有效时段。 [NDW · CC0 1.0](https://docs.ndw.nu/algemeen/data-gebruiksvoorwaarden/) |
+| FMI 波罗的海测波浮标 | `fmi-marine-103976`, `fmi-marine-108126`, `fmi-marine-108499`, `fmi-marine-134220`, `fmi-marine-134221`, `fmi-marine-134246` | `marine` 图层中的六个浮标提供有效波高。卡片也会显示同一时刻测得的谱峰周期、来波方向和水温。时间戳表示波浪采样的开始时间。观测数据两小时后过期。 [FMI · CC BY 4.0](https://en.ilmatieteenlaitos.fi/download-observations-questions) |
+| USDA NRCS SNOTEL 积雪观测 | `snotel-335`, `snotel-415` | `snow` 图层显示科罗拉多州 Berthoud Summit 和 Copper Mountain 两站的每小时积雪深度及雪水当量，单位为厘米。GAIA 只配对同一小时内通过自动质量检查且距今不超过六小时的测量值。 [USDA NRCS · 美国公有领域](https://catalog.data.gov/dataset/snowpack-telemetry-network-snotel) |
 | 可能受淹点位 | `usgs-rtfi-01` | 附近 USGS 水文站的水位超过道路、桥梁、建筑物或其他地点的实测阈值，提示该地点可能受淹。结果为初步判断。空结果仅表示覆盖范围内没有满足条件的点位。 |
 | DART | `noaa-dart-01`, `dart-*` | 固化官方 NDBC 目录中的全部 43 个活动站 |
 | EPA RadNet | `radnet-*` | 全部 140 个 EPA 官方监测点坐标，不是三个演示城市 |

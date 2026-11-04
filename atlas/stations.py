@@ -664,6 +664,16 @@ STATION_CATALOG: dict[str, dict[str, Any]] = {
         "kind": "event",
         "mode": "live",
     },
+    "hubeau-groundwater-01": {
+        "layer": "groundwater",
+        "label": "Hub'Eau Groundwater Wells",
+        "capability": "gaia.groundwater.read@v1",
+        "lat": 0.0,
+        "lon": 0.0,
+        "place": "Eight pilot wells in mainland France",
+        "kind": "event",
+        "mode": "live",
+    },
     "imerg-01": {
         "layer": "precipitation",
         "label": "NASA GPM IMERG",
@@ -777,6 +787,31 @@ STATION_CATALOG: dict[str, dict[str, Any]] = {
         "place": "Finnish train locations (CC BY 4.0 — credit Fintraffic)",
         "kind": "event",
         "mode": "live",
+    },
+    "fintraffic-road-announcements-01": {
+        "layer": "road_events", "label": "Fintraffic Traffic Announcements",
+        "capability": "gaia.road.events.read@v1", "lat": 0.0, "lon": 0.0,
+        "place": "Finnish traffic announcements", "kind": "event", "mode": "live",
+    },
+    "fintraffic-roadworks-01": {
+        "layer": "road_events", "label": "Fintraffic Roadworks",
+        "capability": "gaia.road.events.read@v1", "lat": 0.0, "lon": 0.0,
+        "place": "Finnish roadwork notices", "kind": "event", "mode": "live",
+    },
+    "ndw-road-srti-01": {
+        "layer": "road_events", "label": "NDW Dutch Road Incidents",
+        "capability": "gaia.road.events.read@v1", "lat": 0.0, "lon": 0.0,
+        "place": "Netherlands", "kind": "event", "mode": "live", "max_ttl_s": 120,
+    },
+    "ndw-road-closures-01": {
+        "layer": "road_events", "label": "NDW Dutch Road Closures",
+        "capability": "gaia.road.events.read@v1", "lat": 0.0, "lon": 0.0,
+        "place": "Netherlands", "kind": "event", "mode": "live", "max_ttl_s": 120,
+    },
+    "awc-gairmet-01": {
+        "layer": "aviation_hazards", "label": "NOAA G-AIRMET",
+        "capability": "gaia.aviation.hazards.read@v1", "lat": 0.0, "lon": 0.0,
+        "place": "NOAA/NWS CONUS aviation forecast advisory snapshots", "kind": "event", "mode": "live",
     },
     "usdm-01": {
         "layer": "drought",
@@ -1570,6 +1605,30 @@ for _snow_id, _snow_lat, _snow_lon, _snow_place in (
         "place": f"{_snow_place} SNODAS model cell", "kind": "point", "mode": "live",
     }
 
+for _snotel_id, _snotel_lat, _snotel_lon, _snotel_name in (
+    ("335", 39.80364, -105.77786, "Berthoud Summit"),
+    ("415", 39.48917, -106.17154, "Copper Mountain"),
+):
+    STATION_CATALOG[f"snotel-{_snotel_id}"] = {
+        "layer": "snow", "label": f"SNOTEL · {_snotel_name}",
+        "capability": "gaia.snow.read@v1", "lat": _snotel_lat, "lon": _snotel_lon,
+        "place": f"{_snotel_name}, Colorado", "kind": "point", "mode": "live",
+    }
+
+for _buoy_id, _buoy_lat, _buoy_lon, _buoy_name in (
+    ("103976", 60.123333, 24.972833, "Helsinki Suomenlinna"),
+    ("108126", 59.715833, 21.368333, "Utö Svartbådarna"),
+    ("108499", 65.488750, 24.346467, "Kemi"),
+    ("134220", 59.248167, 20.998333, "Northern Baltic Proper"),
+    ("134221", 59.965000, 25.235000, "Gulf of Finland"),
+    ("134246", 61.800100, 20.232670, "Bothnian Sea"),
+):
+    STATION_CATALOG[f"fmi-marine-{_buoy_id}"] = {
+        "layer": "marine", "label": f"FMI wave buoy · {_buoy_name}",
+        "capability": "gaia.marine.read@v1", "lat": _buoy_lat, "lon": _buoy_lon,
+        "place": _buoy_name, "kind": "point", "mode": "live",
+    }
+
 for _lst_id, _lst_lat, _lst_lon, _lst_place in (
     ("ottawa", 45.4215, -75.6972, "Ottawa"),
     ("berlin", 52.5200, 13.4050, "Berlin"),
@@ -1649,6 +1708,33 @@ STATION_CATALOG["plug-sim-01"] = {
 }
 
 
+# Station coordinates match the official NOAA/NWS and Environment Agency registries.
+for _id, _lat, _lon, _place in (
+    ("pttp1", 40.439444444444, -80.010833333333, "Pittsburgh"),
+    ("rmdv2", 37.563055555556, -77.547222222222, "Richmond-Westham"),
+    ("vckm6", 32.315, -90.905833, "Vicksburg"),
+    ("dlrt2", 29.330833333333, -100.92888888889, "Del Rio"),
+):
+    STATION_CATALOG[f"nwps-{_id}"] = {
+        "layer": "river_forecast", "label": f"NWPS river forecast · {_place}",
+        "capability": "gaia.river.forecast.read@v1", "lat": _lat, "lon": _lon,
+        "place": _place, "kind": "point", "mode": "live",
+    }
+
+for _id, _lat, _lon, _place in (
+    ("e70039", 52.473075, 1.750085, "Lowestoft"),
+    ("e72639", 51.49999, -2.728468, "Avonmouth Portbury"),
+    ("e70539", 53.31394, -4.62043, "Holyhead"),
+    ("e70739", 57.14406, -2.08013, "Aberdeen"),
+    ("e73839", 54.66518, -5.67045, "Bangor"),
+):
+    STATION_CATALOG[f"ea-tide-{_id}"] = {
+        "layer": "tide", "label": f"EA tide gauge · {_place}",
+        "capability": "gaia.tide.read@v1", "lat": _lat, "lon": _lon,
+        "place": _place, "kind": "point", "mode": "live",
+    }
+
+
 LAYER_META: dict[str, dict[str, Any]] = {
     "weather": {
         "color": "#3dd6c6",
@@ -1676,6 +1762,14 @@ LAYER_META: dict[str, dict[str, Any]] = {
         "label": "Rivers",
         "labels": {
             "en": "Rivers", "ru": "Реки", "es": "Ríos", "fr": "Rivières", "zh": "河流",
+        },
+    },
+    "river_forecast": {
+        "color": "#22d3ee",
+        "label": "River forecasts",
+        "labels": {
+            "en": "River forecasts", "ru": "Прогнозы уровня рек",
+            "es": "Previsión del nivel de los ríos", "fr": "Prévisions fluviales", "zh": "河流水位预报",
         },
     },
     "marine": {
@@ -2012,6 +2106,17 @@ LAYER_META: dict[str, dict[str, Any]] = {
         "color": "#facc15",
         "label": "UV forecast",
         "labels": {"en": "UV forecast"},
+    },
+    "road_events": {
+        "color": "#fb923c", "label": "Road notices",
+        "labels": {"en": "Road notices", "ru": "Дорожные сообщения", "es": "Avisos viales",
+                   "fr": "Avis routiers", "zh": "道路通告"},
+    },
+    "aviation_hazards": {
+        "color": "#a78bfa", "label": "Aviation hazard forecasts",
+        "labels": {"en": "Aviation hazard forecasts", "ru": "Авиационные метеопрогнозы",
+                   "es": "Pronósticos de riesgos aéreos", "fr": "Prévisions de risques aéronautiques",
+                   "zh": "航空危险天气预报"},
     },
     "power_price": {
         "color": "#eab308",

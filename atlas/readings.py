@@ -141,13 +141,15 @@ class ReadingStore:
             # A pin may set its own floor (min_ttl_s): an expensive read whose upstream
             # changes slowly (Sentinel-2) is not repeated even by a forced refresh.
             floor = float(STATION_CATALOG[device_id].get("min_ttl_s") or 0.0)
+            ceiling = STATION_CATALOG[device_id].get("max_ttl_s")
+            reuse_ttl = min(ttl, float(ceiling)) if ceiling is not None else ttl
             age = self.age(device_id)
-            if age is not None and ((not force and age < ttl) or age < floor):
+            if age is not None and ((not force and age < reuse_ttl) or age < floor):
                 return self.get_station(device_id)
 
             async with self.lock_for(device_id):
                 age = self.age(device_id)
-                if age is not None and ((not force and age < ttl) or age < floor):
+                if age is not None and ((not force and age < reuse_ttl) or age < floor):
                     return self.get_station(device_id)
                 try:
                     station = await fetch(device_id)

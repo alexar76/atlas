@@ -311,6 +311,7 @@
     air: true,
     tide: true,
     river: true,
+    river_forecast: true,
     marine: true,
     grid: true,
     quake: true,
@@ -347,6 +348,8 @@
     snow: true,
     sea_ice: true,
     land_temperature: true,
+    road_events: false,
+    aviation_hazards: false,
   };
 
   function isUnsetEventPin(s) {
@@ -357,7 +360,8 @@
         || layer === "argo" || layer === "gnss" || layer === "iot" || layer === "flood"
         || layer === "effis" || layer === "volcano" || layer === "ais" || layer === "tsunami"
         || layer === "cyclone" || layer === "adsb" || layer === "smoke"
-        || layer === "precipitation" || layer === "radar" || layer === "sea_ice")) {
+        || layer === "precipitation" || layer === "radar" || layer === "sea_ice"
+        || layer === "road_events" || layer === "aviation_hazards")) {
       return false;
     }
     return !s.parent_id && !s.has_reading && Math.abs(s.lat) < 1e-6 && Math.abs(s.lon) < 1e-6;
@@ -668,6 +672,12 @@
   }
 
   function inBbox(s, b) {
+    const bounds = s.event_bbox;
+    if (Array.isArray(bounds) && bounds.length === 4 && bounds.every(Number.isFinite)) {
+      const [left, bottom, right, top] = bounds;
+      if (top < b.south || bottom > b.north) return false;
+      return b.west <= b.east ? right >= b.west && left <= b.east : right >= b.west || left <= b.east;
+    }
     if (!Number.isFinite(s.lat) || !Number.isFinite(s.lon)) return false;
     if (s.lat < b.south || s.lat > b.north) return false;
     if (b.west <= b.east) return s.lon >= b.west && s.lon <= b.east;
@@ -675,6 +685,18 @@
   }
 
   function ensureSources(map) {
+    if (!map.getSource("transport-events")) {
+      map.addSource("transport-events", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      map.addLayer({
+        id: "transport-events-fill", source: "transport-events", type: "fill",
+        filter: ["==", ["geometry-type"], "Polygon"],
+        paint: { "fill-color": ["get", "color"], "fill-opacity": 0.18 },
+      });
+      map.addLayer({
+        id: "transport-events-line", source: "transport-events", type: "line",
+        paint: { "line-color": ["get", "color"], "line-width": 2, "line-opacity": 0.85 },
+      });
+    }
     if (!map.getSource("sensor-arcs")) {
       map.addSource("sensor-arcs", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
       map.addLayer({
@@ -920,11 +942,21 @@
     ensureSources(map);
     const st = map.getSource("stations");
     const gnssCells = map.getSource("gnss-cells");
+    const transportEvents = map.getSource("transport-events");
     const tw = map.getSource("station-towers");
     const arcs = map.getSource("sensor-arcs");
     const q = map.getSource("quakes");
     if (st) st.setData(stationsToGeoJSON(stations, enabled));
     if (gnssCells) gnssCells.setData(gnssCellsToGeoJSON(stations, enabled));
+    if (transportEvents) transportEvents.setData({
+      type: "FeatureCollection",
+      features: (stations || [])
+        .filter((s) => enabled[s.layer] !== false && s.event_geometry && s.event_geometry.type !== "Point")
+        .map((s) => ({
+          type: "Feature", properties: { id: s.id, color: safeColor(s.color) },
+          geometry: s.event_geometry,
+        })),
+    });
     // Towers / arcs only for real catalog endpoints. Dense map objects carry a
     // parent_id (fires, Argo floats, alert cells, etc.); connecting neighbours
     // in those datasets would invent a network relationship that the source

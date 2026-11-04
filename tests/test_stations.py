@@ -106,6 +106,37 @@ def test_groundwater_cluster_expands_to_fresh_well_and_keeps_datum():
     assert "well measurement" in metrics["observation_unix"]["hint"]
 
 
+def test_hubeau_groundwater_has_distinct_pin_identity_and_datum_metrics():
+    from datetime import datetime, timedelta, timezone
+
+    from atlas.fleet import expand_map_objects
+    from atlas.formatters import build_detail
+
+    now = datetime.now(timezone.utc)
+    row = {
+        "station_id": "BSS001VZGZ", "latitude": 45.2297, "longitude": -0.7491,
+        "groundwater_reference_depth_m": -15.55, "groundwater_level_ngf_m": 21.53,
+        "observed_at": now.isoformat(), "observation_unix": now.timestamp(),
+        "source_updated_date": now.date().isoformat(), "approval_status": "Raw telemetry",
+    }
+    stale = {
+        **row, "station_id": "BSS000ACKJ",
+        "observed_at": (now - timedelta(hours=25)).isoformat(),
+    }
+    parent = {
+        "id": "hubeau-groundwater-01", "layer": "groundwater", "cluster_parent": True,
+        "online": True, "live": True, "hotspots": [row, stale],
+    }
+    [point] = expand_map_objects([parent])
+    assert point["id"] == "hubeau-gw-well-BSS001VZGZ"
+    detail = build_detail(point, cached=True, age_ms=0)
+    metrics = {metric["key"]: metric for metric in detail["metrics"]}
+    assert metrics["groundwater_reference_depth_m"]["value"] == "-15.55 m"
+    assert metrics["groundwater_level_ngf_m"]["value"] == "21.53 m"
+    assert "groundwater_depth_m" not in metrics
+    assert metrics["source_updated_date"]["value"] == row["source_updated_date"]
+
+
 def test_p11_catalog_pins_are_points_with_coordinates():
     """P11 meshes are in-situ stations: ATLAS must place a clickable point pin."""
     from atlas.fleet import pin_from_catalog, wanted_station_ids

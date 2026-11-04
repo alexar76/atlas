@@ -5,6 +5,8 @@ from __future__ import annotations
 import time
 from typing import Any
 
+from .map_objects import NDW_NOTICE_IDS, without_expired_source_reading
+
 FIELD_META: dict[str, dict[str, str]] = {
     "temperature_c": {
         "label": "Temperature",
@@ -51,6 +53,18 @@ FIELD_META: dict[str, dict[str, str]] = {
         "unit": "",
         "hint": "UK Daily Air Quality Index (1 low … 10 very high)",
     },
+    "water_level_maod": {
+        "label": "Measured coastal water level",
+        "unit": "mAOD",
+        "hint": "15-minute mean relative to Ordnance Datum at Newlyn",
+    },
+    "forecast_stage_m": {
+        "label": "Forecast peak stage",
+        "unit": "m",
+        "hint": "Highest available forecast sample in the next 72 hours, above local gage datum",
+    },
+    "forecast_issued_unix": {"label": "Forecast issued", "unit": "", "hint": "NOAA/NWS issue time"},
+    "forecast_valid_unix": {"label": "Forecast peak valid at", "unit": "", "hint": "Time of the forecast sample"},
     "water_level_m": {
         "label": "Water level",
         "unit": "m",
@@ -74,13 +88,32 @@ FIELD_META: dict[str, dict[str, str]] = {
         "unit": "m",
         "hint": "Measured from the local land surface, positive downward",
     },
-    "approval_status": {"label": "USGS approval status", "unit": "", "hint": ""},
+    "forecast_hour": {"label": "Forecast lead", "unit": "h", "hint": ""},
+    "base_ft": {"label": "Base altitude", "unit": "ft", "hint": "Source G-AIRMET base"},
+    "top_ft": {"label": "Top altitude", "unit": "ft", "hint": "Source G-AIRMET top"},
+    "level_ft": {"label": "Freezing level", "unit": "ft", "hint": "Source G-AIRMET contour"},
+    "groundwater_reference_depth_m": {
+        "label": "Depth to water from measuring reference",
+        "unit": "m",
+        "hint": "Measured from the station reference point, positive downward",
+    },
+    "groundwater_level_ngf_m": {
+        "label": "Water elevation (NGF)",
+        "unit": "m",
+        "hint": "Water elevation on France's NGF vertical datum",
+    },
+    "source_updated_date": {"label": "Source update date", "unit": "", "hint": ""},
+    "approval_status": {"label": "Review status", "unit": "", "hint": ""},
     "qualifier": {"label": "USGS qualifier", "unit": "", "hint": ""},
     "wave_height_m": {
         "label": "Wave height",
         "unit": "m",
         "hint": "Significant wave height",
     },
+    "wave_period_s": {"label": "Wave period", "unit": "s", "hint": "Wave period reported by the source"},
+    "wave_direction_deg": {"label": "Wave direction", "unit": "°", "hint": "Direction waves come from, clockwise from true north"},
+    "snow_depth_cm": {"label": "Snow depth", "unit": "cm", "hint": "Depth of the snowpack"},
+    "snow_water_equivalent_cm": {"label": "Snow-water equivalent", "unit": "cm", "hint": "Depth of water in the snowpack if melted"},
     "sst_c": {
         "label": "Sea surface temp",
         "unit": "°C",
@@ -304,7 +337,8 @@ FIELD_META: dict[str, dict[str, str]] = {
 LAYER_BLURB: dict[str, str] = {
     "weather": "Weather observation — Open-Meteo, NWS, SMHI MetObs, Frost, DMI, FMI, Singapore NEA, HKO, AEMET, MeteoSwiss, CWA, Météo-France, Estonia EWS, Iceland IMO, and other LIVE public feeds (or physics simulator).",
     "air": "Air-quality sample (particulates and gases) — LIVE public feed or simulator.",
-    "tide": "Coastal water level from a NOAA tide gauge or UHSLC fast-delivery.",
+    "tide": "Coastal water level from NOAA, UHSLC, or the UK Environment Agency.",
+    "river_forecast": "NOAA/NWS river stage forecast on the local gage datum.",
     "river": "River discharge and stage — USGS, ECCC, SMHI hydro, PEGELONLINE, EA, RWS, SEPA, NRW, Hub'Eau, eHYD, BAFU/FOEN (geodetic water level, not USGS stage).",
     "marine": "Wave height and sea-surface temperature — NDBC buoy or Open-Meteo Marine.",
     "grid": "National electricity carbon intensity for the UK grid.",
@@ -339,7 +373,7 @@ LAYER_BLURB: dict[str, str] = {
     "drought": "U.S. Drought Monitor weekly state statistics (attribute NDMC / USDA / NOAA / NASA).",
     "smoke": "NOAA/NESDIS HMS qualitative smoke polygons (U.S. public domain). Polygon centroids, not PM2.5 sensors.",
     "water_quality": "USGS automated continuous water quality (U.S. public domain; values may be provisional).",
-    "groundwater": "USGS pilot well depth below local land surface. Measurements may be provisional.",
+    "groundwater": "Pilot well observations from USGS or Hub'Eau with source-specific reference levels.",
     "dart": "NOAA/NDBC DART deep-ocean water-column height (U.S. public domain). Gauge, not a warning.",
     "precipitation": "NASA GPM IMERG Early Run V07 half-hour grid cells (NASA open data; preliminary).",
     "radar": "NOAA/NWS NEXRAD WSR-88D operational health per radar coordinate; not reflectivity pixels.",
@@ -356,6 +390,9 @@ LAYER_BLURB: dict[str, str] = {
 
 _LAYER_FIELD_HINTS: dict[tuple[str, str], str] = {
     ("groundwater", "observation_unix"): "When the well measurement was taken",
+    ("tide", "observation_unix"): "When the coastal water level was measured",
+    ("marine", "observation_unix"): "Start of the wave sampling interval",
+    ("snow", "observation_unix"): "Time of the paired SNOTEL snow measurements",
     ("jamming", "severity_score"): "GNSS interference severity score",
     ("effis", "severity_score"): "EFFIS burnt-area score from polygon size",
     ("flood", "severity_score"): "Flood / flash-flood warning severity",
@@ -410,8 +447,14 @@ def headline(layer: str, values: dict[str, Any]) -> str:
             daqi = _fmt_num(values.get("air_quality_index"), digits=0)
             return f"UK DAQI {daqi}/10" if daqi is not None else "Air quality"
         if layer == "tide":
+            maod = _fmt_num(values.get("water_level_maod"), digits=3)
+            if maod is not None:
+                return f"Water {maod} mAOD"
             wl = _fmt_num(values.get("water_level_m"), digits=3)
             return f"Water {wl} m" if wl is not None else "Tide"
+        if layer == "river_forecast":
+            peak = _fmt_num(values.get("forecast_stage_m"), digits=2)
+            return f"Forecast peak {peak} m" if peak is not None else "River forecast"
         if layer == "river":
             q = _fmt_num(values.get("discharge_m3s"), digits=1)
             return f"Q {q} m³/s" if q is not None else "River"
@@ -509,6 +552,9 @@ def headline(layer: str, values: dict[str, Any]) -> str:
             return f"Water pH {ph}" if ph is not None else "Water quality"
         if layer == "groundwater":
             depth = _fmt_num(values.get("groundwater_depth_m"), digits=2)
+            reference_depth = _fmt_num(values.get("groundwater_reference_depth_m"), digits=2)
+            if reference_depth is not None:
+                return f"Depth from measuring reference {reference_depth} m"
             return f"Depth to water {depth} m" if depth is not None else "Groundwater well"
         if layer == "dart":
             h = _fmt_num(values.get("water_column_height_m"), digits=3)
@@ -561,8 +607,10 @@ def metric_rows(values: dict[str, Any], *, layer: str = "") -> list[dict[str, st
     rows: list[dict[str, str]] = []
     for key, raw in values.items():
         meta = FIELD_META.get(key, {"label": key.replace("_", " "), "unit": "", "hint": ""})
-        digits = 3 if key in {"water_level_m", "gage_height_m", "latitude", "longitude"} else (
-            2 if key in {"wave_height_m", "discharge_m3s", "pool_elev_m", "groundwater_depth_m"} else (
+        digits = 3 if key in {"water_level_m", "water_level_maod", "gage_height_m", "latitude", "longitude"} else (
+            2 if key in {"wave_height_m", "discharge_m3s", "pool_elev_m", "groundwater_depth_m",
+                         "groundwater_reference_depth_m", "groundwater_level_ngf_m",
+                         "forecast_stage_m"} else (
                 0 if key.endswith("_kwh") else 1
             )
         )
@@ -635,6 +683,9 @@ def build_detail(
     cached: bool,
     age_ms: int,
 ) -> dict[str, Any]:
+    current = without_expired_source_reading(station, now=time.time())
+    expired = current is not station
+    station = current
     values = station.get("values") if isinstance(station.get("values"), dict) else {}
     layer = str(station.get("layer") or "")
     metrics = metric_rows(values, layer=layer)
@@ -645,6 +696,11 @@ def build_detail(
     title = station.get("label") or station.get("id")
     hl = station.get("headline") or headline(layer, values)
     blurb = LAYER_BLURB.get(layer, "")
+    device_id = str(station.get("id") or "")
+    if device_id.startswith("fmi-marine-"):
+        blurb = "Finnish Meteorological Institute in-situ wave buoy (CC BY 4.0)"
+    elif device_id.startswith("snotel-"):
+        blurb = "USDA NRCS SNOTEL in-situ snow depth and snow-water equivalent (U.S. public domain)"
     boundary = {}
     if station.get("claim_class") == "surveyed_flood_threshold_exceedance":
         blurb = "USGS surveyed flood impact threshold"
@@ -652,6 +708,21 @@ def build_detail(
             f"USGS gage {station.get('gage_id', '')} observed at {station.get('observed_at', '')}. "
             "The threshold exceedance indicates possible local inundation. "
             "Road closure and on-site flooding require separate confirmation."
+        )
+    if station.get("claim_class") == "published_road_notice":
+        start = station.get("valid_from", "")
+        end = station.get("valid_until") or "open-ended"
+        provider = "NDW" if station.get("parent_id") in NDW_NOTICE_IDS else "Fintraffic"
+        blurb = f"{provider} notice within its published dates"
+        boundary["evidence_boundary"] = (
+            f"Updated {station.get('issue_at', '')}. Published validity {start} to {end}. "
+            f"Check {provider} for current restrictions and work schedules."
+        )
+    if station.get("claim_class") == "aviation_forecast_snapshot":
+        blurb = "NOAA/NWS aviation forecast snapshot"
+        boundary["evidence_boundary"] = (
+            f"Issued {station.get('issue_at', '')}. Forecast valid at {station.get('valid_at', '')}. "
+            "Obtain an official aviation weather briefing for flight decisions."
         )
 
     bits: list[str] = []
@@ -666,7 +737,7 @@ def build_detail(
         bits.append("online now")
     else:
         bits.append("currently offline")
-    if cached and age_ms >= 0:
+    if cached and age_ms >= 0 and not expired:
         if age_ms < 2000:
             bits.append("fresh reading")
         else:
@@ -679,6 +750,8 @@ def build_detail(
     if metrics:
         top = ", ".join(f"{m['label']} {m['value']}" for m in metrics[:3])
         summary += f" Key metrics: {top}."
+    if station.get("notice_text"):
+        summary += f" {station['notice_text']}"
 
     return {
         **station,

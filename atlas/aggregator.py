@@ -17,7 +17,12 @@ from .geo import expand_bbox, in_bbox, lon_span, normalize_bbox, station_ids_in_
 from . import fleet as fleet_mod
 from .gnss_index import integrity_counts
 from .layer_counts import build_layer_counts
-from .map_objects import is_fresh_cluster_observation, normalized_hotspots
+from .map_objects import (
+    is_fresh_cluster_observation,
+    normalized_hotspots,
+    source_reading_expiry,
+    without_expired_source_reading,
+)
 from .readings import ReadingStore
 from .stations import LAYER_META, STATION_CATALOG
 from .water_quality_history import WaterQualityHistoryStore
@@ -367,10 +372,12 @@ class Aggregator:
     def snapshot(self) -> dict[str, Any]:
         rev = int(getattr(self._store, "rev", 0) or 0)
         fleet_mono = self._snapshot.get("_monotonic")
+        wall_now = time.time()
         if (
             self._public_snap is not None
             and self._public_snap_rev == rev
             and self._public_snap.get("_fleet_mono") == fleet_mono
+            and wall_now < self._public_snap.get("_source_expiry", float("inf"))
         ):
             snap = dict(self._public_snap)
             now = time.monotonic()
@@ -381,6 +388,7 @@ class Aggregator:
                 snap["stale"] = age_ms > int(self.settings.stale_after_s * 1000)
             snap.pop("_monotonic", None)
             snap.pop("_fleet_mono", None)
+            snap.pop("_source_expiry", None)
             return snap
 
         # Shallow shell — do NOT deepcopy tens of thousands of pins.
@@ -412,6 +420,9 @@ class Aggregator:
                 "lat": station.get("lat"),
                 "lon": station.get("lon"),
                 "reading_age_ms": age_ms,
+                "source_read_at": station.get("source_read_at"),
+                "source_published_at": station.get("source_published_at"),
+                "source_expires_at": station.get("source_expires_at"),
                 "has_reading": bool(station.get("values")),
                 "cluster_parent": bool(station.get("cluster_parent")),
             }
@@ -435,6 +446,14 @@ class Aggregator:
                 enriched["reading_age_ms"] = age_ms
                 enriched["has_reading"] = bool(station.get("values"))
                 by_id[device_id] = enriched
+        by_id = {
+            device_id: without_expired_source_reading(station, now=wall_now)
+            for device_id, station in by_id.items()
+        }
+        snap["_source_expiry"] = min(
+            (expiry for station in by_id.values() if (expiry := source_reading_expiry(station)) is not None),
+            default=float("inf"),
+        )
         stations = fleet_mod.expand_fire_hotspots(list(by_id.values()), expand=False)
         snap["stations"] = stations
         generated = self._snapshot.get("_monotonic")
@@ -498,6 +517,7 @@ class Aggregator:
         out = dict(snap)
         out.pop("_monotonic", None)
         out.pop("_fleet_mono", None)
+        out.pop("_source_expiry", None)
         return out
 
     def monitor_payload(self) -> dict[str, Any]:
@@ -1140,6 +1160,15 @@ class Aggregator:
         map_pad = 2.0
         mw, ms, me, mn = expand_bbox(west, south, east, north, map_pad)
         def _in_view(p: dict[str, Any]) -> bool:
+            bounds = p.get("event_bbox")
+            if isinstance(bounds, list) and len(bounds) == 4:
+                left, bottom, right, top = bounds
+                if all(isinstance(edge, (int, float)) for edge in bounds):
+                    if top < ms or bottom > mn:
+                        return False
+                    if mw <= me:
+                        return right >= mw and left <= me
+                    return right >= mw or left <= me
             try:
                 lat = float(p.get("lat"))
                 lon = float(p.get("lon"))
@@ -1203,7 +1232,10 @@ class Aggregator:
             "in_flight": self._store.in_flight,
             # Slim wire copy — the raw clusters already ship expanded in
             # map_points; sending them twice doubled the payload per pan.
-            "stations": fleet_mod.expand_map_objects(stations, expand=False),
+            "stations": fleet_mod.expand_map_objects(
+                [without_expired_source_reading(station, now=time.time()) for station in stations],
+                expand=False,
+            ),
             "map_points": map_points,
             "quakes": list(self._quake_trail),
             "snapshot": public,

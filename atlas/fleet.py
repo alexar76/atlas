@@ -49,7 +49,7 @@ EVENT_LAYERS = frozenset({
     "events", "spacewx", "lightning", "alerts", "argo", "iot",
     "flood", "effis", "volcano", "cyclone", "adsb", "smoke", "water_quality",
     "precipitation", "radar", "sea_ice", "groundwater",
-    "road", "rail", "drought", "uv", "weather",
+    "road", "rail", "drought", "uv", "weather", "road_events", "aviation_hazards",
 })
 # Default-on LIVE event pins shown even before a fleet read. Traffic/IoT feeders are
 # opt-in (GAIA_FEEDER_ENABLED) — only appear when registered in the GAIA fleet.
@@ -58,7 +58,7 @@ CATALOG_EVENT_LAYERS = frozenset({
     "events", "spacewx", "lightning", "alerts", "argo",
     "flood", "effis", "volcano", "cyclone", "smoke", "water_quality",
     "precipitation", "radar", "sea_ice", "groundwater",
-    "road", "rail", "drought", "uv",
+    "road", "rail", "drought", "uv", "road_events", "aviation_hazards",
 })
 # Cluster layers fanned into map_points / paid SKU pins. Space weather carries
 # a geographic OVATION grid: every sample is an inspectable ATLAS point.
@@ -69,14 +69,15 @@ DENSE_EVENT_LAYERS = frozenset({
     "events", "spacewx", "lightning", "alerts", "argo", "flood", "effis", "volcano",
     "ais", "tsunami", "cyclone", "adsb", "smoke", "water_quality",
     "precipitation", "radar", "sea_ice", "groundwater",
-    "road", "rail", "drought", "uv", "weather",
+    "road", "rail", "drought", "uv", "weather", "road_events", "aviation_hazards",
 })
 DENSE_PIN_PREFIXES = (
     "firms-hs-", "rad-hs-", "quake-ev-", "jam-ev-",
     "eonet-ev-", "swpc-hs-", "glm-hs-", "cap-ev-", "flood-hs-", "effis-hs-", "volc-ev-",
     "ais-ves-", "tsu-ev-", "cyc-ev-", "adsb-ac-", "smoke-poly-", "usgs-wq-site-",
-    "imerg-cell-", "nexrad-site-", "sea-ice-cell-", "usgs-gw-well-",
+    "imerg-cell-", "nexrad-site-", "sea-ice-cell-", "usgs-gw-well-", "hubeau-gw-well-",
     "road-st-", "rail-tr-", "drought-st-",
+    "road-notice-", "gairmet-",
     "uv-us-", "wx-ie-",
     "argo-wmo-",
     "gnss-station:",
@@ -188,6 +189,17 @@ def remember_quake(
 
 
 CLUSTER_META: dict[str, dict[str, Any]] = {
+    "road_events": {
+        "prefix": "road-notice", "keys": ("latitude", "longitude"), "stable_id": "event_id",
+        "provenance": ("title", "notice_text", "notice_type", "notice_subtype", "issue_at", "valid_from", "source_read_at",
+                       "valid_until", "source_published_at", "source_expires_at", "claim_class", "evidence_boundary"),
+    },
+    "aviation_hazards": {
+        "prefix": "gairmet", "keys": ("latitude", "longitude", "forecast_hour", "base_ft", "top_ft", "level_ft"),
+        "stable_id": "event_id",
+        "provenance": ("title", "notice_text", "notice_type", "notice_subtype", "issue_at", "valid_at", "severity",
+                       "claim_class", "evidence_boundary"),
+    },
     "fire": {
         "prefix": "firms-hs",
         "keys": ("brightness_k", "confidence", "latitude", "longitude"),
@@ -339,10 +351,16 @@ CLUSTER_META: dict[str, dict[str, Any]] = {
     },
     "groundwater": {
         "prefix": "usgs-gw-well",
-        "keys": ("groundwater_depth_m", "observation_unix", "approval_status", "qualifier"),
+        "keys": (
+            "groundwater_depth_m", "groundwater_reference_depth_m", "groundwater_level_ngf_m",
+            "observation_unix", "approval_status", "qualifier", "source_updated_date",
+        ),
         "kind": "point",
         "stable_id": "station_id",
-        "provenance": ("station_id", "observed_at", "parameter_code", "reference", "time_series_id"),
+        "provenance": (
+            "station_id", "observed_at", "parameter_code", "reference",
+            "time_series_id", "source_updated_date",
+        ),
     },
     "precipitation": {
         "prefix": "imerg-cell",
@@ -499,7 +517,7 @@ def expand_map_objects(
         tag = tag.replace("epa-uv-", "eu").replace("met-ie-", "mi")
         tag = re.sub(r"[^a-zA-Z0-9_-]", "", tag)[:24] or "x"
         color = station.get("color") or LAYER_META.get(layer, {}).get("color", "#888")
-        prefix = str(meta["prefix"])
+        prefix = "hubeau-gw-well" if parent_id == "hubeau-groundwater-01" else str(meta["prefix"])
         keys: tuple[str, ...] = meta["keys"]
         provenance_keys: tuple[str, ...] = meta.get("provenance", ())
         expanded = 0
@@ -523,6 +541,11 @@ def expand_map_objects(
             values["longitude"] = lon
             values = {str(k): v for k, v in values.items() if v is not None}
             provenance = {k: row.get(k) for k in provenance_keys if row.get(k) is not None}
+            transport_event = layer in {"road_events", "aviation_hazards"}
+            if transport_event and isinstance(row.get("geometry"), dict):
+                provenance["event_geometry"] = row["geometry"]
+                if isinstance(row.get("event_bbox"), list):
+                    provenance["event_bbox"] = row["event_bbox"]
             private: dict[str, Any] = {}
             if include_private_geometry and layer == "smoke" and isinstance(row.get("geometry"), dict):
                 private["geometry"] = row["geometry"]
@@ -551,6 +574,8 @@ def expand_map_objects(
                     continue
                 pin_id = f"{pin_id}-{i}"
             seen_ids.add(pin_id)
+            display_label = provenance.get("title") if transport_event else None
+            display_headline = provenance.get("notice_type") if transport_event else None
             # Slim pins — full catalog metadata on every FIRMS row froze snapshot
             # serialization (~100MB) and the asyncio loop.
             out.append(
@@ -568,8 +593,8 @@ def expand_map_objects(
                     "values": values,
                     "color": color,
                     "has_reading": True,
-                    "label": station.get("label") or parent_id,
-                    "headline": headline(layer, values),
+                    "label": display_label or station.get("label") or parent_id,
+                    "headline": display_headline or headline(layer, values),
                     **provenance,
                     **private,
                 }
@@ -715,6 +740,7 @@ async def fetch_station_reading(
     # ReadingStore then keeps the prior cluster. A successful cluster read sets
     # a real list (possibly empty), which is authoritative and clears stale data.
     hotspots: list[dict[str, Any]] | None = None
+    transport_times: dict[str, str] = {}
     site = str(fleet_dev.get("site") or "")
     extra: dict[str, Any] = {}
     if meta["layer"] == "fire":
@@ -777,6 +803,9 @@ async def fetch_station_reading(
             vals = r.get("values")
             if isinstance(vals, dict):
                 values = {str(k): v for k, v in vals.items()}
+            if meta["layer"] in {"road_events", "aviation_hazards"}:
+                transport_times = {key: r[key] for key in ("source_read_at", "source_published_at", "source_expires_at")
+                                   if isinstance(r.get(key), str)}
             site = str(r.get("site") or site)
             raw_hs = r.get("hotspots")
             if isinstance(raw_hs, list):
@@ -853,6 +882,7 @@ async def fetch_station_reading(
     }
     if evidence:
         station["upstream_evidence"] = evidence
+        station.update(transport_times)
     if station_matched:
         station["hotspot_matched"] = int(station_matched)
     if inventory_total is not None:

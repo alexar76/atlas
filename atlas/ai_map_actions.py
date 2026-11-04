@@ -96,6 +96,7 @@ LAYER_HINTS: dict[str, tuple[str, ...]] = {
     "air": ("air quality", "воздух", "pm2", "pm10", "aqi", "calidad del aire", "qualité de l'air", "空气"),
     "tide": ("tide", "прилив", "marea", "marée", "maree", "潮汐"),
     "river": ("river", "stream", "discharge", "река", "gauge", "gage", "flood", "паводок", "rivière", "河流"),
+    "river_forecast": ("river forecast", "nwps", "прогноз уровня рек", "prévision fluviale", "河流水位预报"),
     "groundwater": ("groundwater", "depth to water", "грунтов", "скважин", "aguas subterráneas", "eaux souterraines", "地下水"),
     "marine": ("marine", "buoy", "wave", "ocean", "море", "волн", "буй", "mer", "vague", "海浪", "浮标"),
     "grid": ("grid", "carbon", "углерод", "gco2", "碳强度", "电网"),
