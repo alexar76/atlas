@@ -11,9 +11,13 @@ from typing import Any, Optional
 
 from . import __version__
 from .formatters import headline
-from .geo import utc_now
+from .geo import in_bbox, utc_now
 from .gnss_index import materialize_gnss_cells
 from .map_objects import (
+    REGIONAL_CLUSTER_IDS,
+    TORONTO_BIKE_ID,
+    TORONTO_ROADS_ID,
+    UKPN_ID,
     is_actionable_water_quality_hotspot,
     normalize_map_point,
     normalized_hotspots,
@@ -44,13 +48,17 @@ def upstream_evidence(output: dict[str, Any] | None) -> dict[str, Any]:
     return evidence
 
 # Layers whose pin lat/lon come from the reading (not a fixed catalog anchor).
+_WAVE_CLUSTER_LAYERS = {"ev_charging", "wildfire_perimeters", "storm_reports", "volcanic_ash", "fire_hotspots"}
+
 EVENT_LAYERS = frozenset({
     "quake", "fire", "radiation", "jamming", "gnss", "traffic",
     "events", "spacewx", "lightning", "alerts", "argo", "iot",
     "flood", "effis", "volcano", "cyclone", "adsb", "smoke", "water_quality",
     "precipitation", "radar", "sea_ice", "groundwater",
     "road", "rail", "drought", "uv", "weather", "road_events", "aviation_hazards",
-})
+    "hf_absorption", "smoke_forecast",
+    "power_outages", "ocean_drifters", "bikeshare",
+}) | _WAVE_CLUSTER_LAYERS
 # Default-on LIVE event pins shown even before a fleet read. Traffic/IoT feeders are
 # opt-in (GAIA_FEEDER_ENABLED) — only appear when registered in the GAIA fleet.
 CATALOG_EVENT_LAYERS = frozenset({
@@ -58,8 +66,9 @@ CATALOG_EVENT_LAYERS = frozenset({
     "events", "spacewx", "lightning", "alerts", "argo",
     "flood", "effis", "volcano", "cyclone", "smoke", "water_quality",
     "precipitation", "radar", "sea_ice", "groundwater",
-    "road", "rail", "drought", "uv", "road_events", "aviation_hazards",
-})
+    "road", "rail", "drought", "uv", "road_events", "aviation_hazards", "hf_absorption",
+    "power_outages", "ocean_drifters", "bikeshare",
+}) | _WAVE_CLUSTER_LAYERS
 # Cluster layers fanned into map_points / paid SKU pins. Space weather carries
 # a geographic OVATION grid: every sample is an inspectable ATLAS point.
 # Geomag stations remain individual sources. Argo is one commercial relay whose
@@ -69,15 +78,18 @@ DENSE_EVENT_LAYERS = frozenset({
     "events", "spacewx", "lightning", "alerts", "argo", "flood", "effis", "volcano",
     "ais", "tsunami", "cyclone", "adsb", "smoke", "water_quality",
     "precipitation", "radar", "sea_ice", "groundwater",
-    "road", "rail", "drought", "uv", "weather", "road_events", "aviation_hazards",
-})
+    "road", "rail", "drought", "uv", "weather", "road_events", "aviation_hazards", "hf_absorption",
+    "power_outages", "ocean_drifters", "bikeshare",
+}) | _WAVE_CLUSTER_LAYERS
 DENSE_PIN_PREFIXES = (
     "firms-hs-", "rad-hs-", "quake-ev-", "jam-ev-",
     "eonet-ev-", "swpc-hs-", "glm-hs-", "cap-ev-", "flood-hs-", "effis-hs-", "volc-ev-",
     "ais-ves-", "tsu-ev-", "cyc-ev-", "adsb-ac-", "smoke-poly-", "usgs-wq-site-",
     "imerg-cell-", "nexrad-site-", "sea-ice-cell-", "usgs-gw-well-", "hubeau-gw-well-",
     "road-st-", "rail-tr-", "drought-st-",
-    "road-notice-", "gairmet-",
+    "road-notice-", "gairmet-", "bfs-odl-st-", "entur-tr-", "drap-cell-",
+    "toronto-road-notice-", "toronto-bike-st-", "ukpn-fault-", "aoml-drifter-",
+    "dotnl-charge-", "bc-fire-", "geonet-volcano-status-", "spc-report-", "vaac-ash-", "dea-hotspot-",
     "uv-us-", "wx-ie-",
     "argo-wmo-",
     "gnss-station:",
@@ -189,6 +201,11 @@ def remember_quake(
 
 
 CLUSTER_META: dict[str, dict[str, Any]] = {
+    "hf_absorption": {
+        "prefix": "drap-cell",
+        "keys": ("latitude", "longitude", "drap_frequency_mhz", "forecast_valid_unix"),
+        "provenance": ("observed_at",),
+    },
     "road_events": {
         "prefix": "road-notice", "keys": ("latitude", "longitude"), "stable_id": "event_id",
         "provenance": ("title", "notice_text", "notice_type", "notice_subtype", "issue_at", "valid_from", "source_read_at",
@@ -410,10 +427,77 @@ CLUSTER_META: dict[str, dict[str, Any]] = {
     },
 }
 
+_DEVICE_CLUSTER_META: dict[str, dict[str, Any]] = {
+    "ndw-ev-charging-01": {
+        "prefix": "dotnl-charge", "stable_id": "station_key", "kind": "point",
+        "keys": ("connector_count", "available_count", "max_power_kw", "observation_unix"),
+        "provenance": ("station_id", "title", "provider", "connectors", "observed_at", "valid_until"),
+    },
+    "bc-wildfire-01": {
+        "prefix": "bc-fire", "stable_id": "event_id",
+        "keys": ("area_ha", "perimeter_area_ha", "ignition_unix", "perimeter_observation_unix"),
+        "provenance": ("event_id", "title", "status", "claim_class", "ignition_at", "perimeter_observed_at", "valid_until"),
+    },
+    "geonet-volcano-01": {
+        "prefix": "geonet-volcano-status", "stable_id": "volcano_id", "kind": "point",
+        "keys": ("volcanic_alert_level",),
+        "provenance": ("volcano_id", "title", "aviation_color_code", "cameras", "valid_until", "source_retrieved_at"),
+    },
+    "noaa-spc-storm-reports-01": {
+        "prefix": "spc-report", "stable_id": "event_id", "kind": "point",
+        "keys": ("observation_unix", "hail_size_mm", "wind_mps"),
+        "provenance": ("event_id", "title", "claim_class", "notice_type", "observed_at", "valid_until"),
+    },
+    "noaa-vaac-ash-01": {
+        "prefix": "vaac-ash", "stable_id": "event_id",
+        "keys": ("base_ft", "top_ft", "forecast_hour"),
+        "provenance": ("event_id", "title", "claim_class", "notice_type", "issue_at", "valid_at", "valid_until"),
+    },
+    "dea-hotspots-01": {
+        "prefix": "dea-hotspot", "stable_id": "event_id", "kind": "point",
+        "keys": ("observation_unix", "brightness_k", "confidence"),
+        "provenance": ("event_id", "title", "claim_class", "satellite", "sensor", "observed_at", "valid_until"),
+    },
+    TORONTO_ROADS_ID: {
+        **CLUSTER_META["road_events"],
+        "prefix": "toronto-road-notice",
+        "provenance": (*CLUSTER_META["road_events"]["provenance"], "severity"),
+    },
+    TORONTO_BIKE_ID: {
+        "prefix": "toronto-bike-st", "kind": "point", "stable_id": "station_id",
+        "keys": ("latitude", "longitude", "bikes_available", "ebikes_available", "docks_available",
+                 "is_renting", "is_returning", "observation_unix"),
+        "provenance": ("title", "station_id", "observed_at", "valid_until"),
+    },
+    UKPN_ID: {
+        "prefix": "ukpn-fault", "stable_id": "incident_id",
+        "keys": ("latitude", "longitude", "customers_affected"),
+        "provenance": ("title", "incident_id", "outage_type", "incident_status", "operating_zone",
+                       "estimated_restoration_at", "estimated_restoration_local",
+                       "valid_until", "source_published_at", "source_expires_at"),
+    },
+    "aoml-drifters-01": {
+        "prefix": "aoml-drifter", "stable_id": "platform_code",
+        "keys": ("latitude", "longitude", "sst_c", "sea_level_pressure_hpa", "observation_unix"),
+        "provenance": ("platform_code", "observed_at"),
+    },
+    "bfs-odl-01": {
+        "prefix": "bfs-odl-st", "kind": "point", "stable_id": "station_id",
+        "keys": ("latitude", "longitude", "dose_equivalent_nsv_h", "observation_unix"),
+        "provenance": ("station_id", "station_name", "observed_at"),
+    },
+    "entur-rail-vyg-01": {
+        "prefix": "entur-tr", "stable_id": "train_number",
+        "keys": ("latitude", "longitude", "observation_unix"),
+        "provenance": ("line_ref", "observed_at", "valid_until", "source_valid_until"),
+    },
+}
+
 
 # A pin id carries its own provenance: ``{prefix}-{tag}-{lat*1e4}_{lon*1e4}``.
 PIN_PREFIX_LAYERS: dict[str, str] = {
-    str(meta["prefix"]): layer for layer, meta in CLUSTER_META.items()
+    "drap-cell-overview": "hf_absorption",
+    **{str(meta["prefix"]): layer for layer, meta in CLUSTER_META.items()},
 }
 _PIN_COORD_RE = re.compile(r"-(-?\d{1,7})_(-?\d{1,8})(?:-\d{1,4})?$")
 
@@ -455,11 +539,31 @@ def dense_pin_from_id(pin_id: str) -> dict[str, Any] | None:
     }
 
 
+def drap_overview_points(
+    points: list[tuple[dict[str, Any], float, float]],
+) -> list[tuple[dict[str, Any], float, float]]:
+    """Take each 3×3 tile maximum for wide map views, preserving native rows."""
+    buckets: dict[tuple[int, int], list[tuple[dict[str, Any], float, float]]] = {}
+    for point in points:
+        _, lat, lon = point
+        buckets.setdefault((int((lat + 90) // 6), int((lon + 180) // 12)), []).append(point)
+    overview = []
+    for (y, x), rows in buckets.items():
+        # A partially received tile must not misrepresent a partial maximum.
+        if len(rows) != 9:
+            continue
+        peak, _, _ = max(rows, key=lambda row: row[0]["drap_frequency_mhz"])
+        overview.append((peak, -87 + 6 * y, -174 + 12 * x))
+    return overview
+
+
 def expand_map_objects(
     stations: list[dict[str, Any]],
     *,
     expand: bool = True,
     include_private_geometry: bool = False,
+    drap_resolution: str = "native",
+    drap_bbox: tuple[float, float, float, float] | None = None,
 ) -> list[dict[str, Any]]:
     """Fan event ``hotspots[]`` into one map pin per detection.
 
@@ -481,11 +585,11 @@ def expand_map_objects(
                 slim["cluster_parent"] = True
             out.append(slim)
         return out
-    cluster_meta = CLUSTER_META
     out = []
     for station in stations:
         layer = str(station.get("layer") or "")
-        meta = cluster_meta.get(layer)
+        parent_id = str(station.get("id") or f"{layer}-01")
+        meta = _DEVICE_CLUSTER_META.get(parent_id) or CLUSTER_META.get(layer)
         points = normalized_hotspots(station)
         if points is None:
             slim = {k: v for k, v in station.items() if k != "hotspots"}
@@ -499,7 +603,6 @@ def expand_map_objects(
             # Future geographic array feeds automatically become clickable
             # without adding another layer-specific allowlist entry.
             meta = {"prefix": "atlas-pt", "keys": ()}
-        parent_id = str(station.get("id") or f"{layer}-01")
         # Stable short tag so multiple Safecast anchors don't collide.
         tag = parent_id.replace("safecast-", "sc").replace("firms-fire-", "ff")
         tag = tag.replace("usgs-quake-", "uq").replace("cybernews-jam-", "cj")
@@ -518,6 +621,12 @@ def expand_map_objects(
         tag = re.sub(r"[^a-zA-Z0-9_-]", "", tag)[:24] or "x"
         color = station.get("color") or LAYER_META.get(layer, {}).get("color", "#888")
         prefix = "hubeau-gw-well" if parent_id == "hubeau-groundwater-01" else str(meta["prefix"])
+        drap = parent_id == "swpc-drap-01"
+        if drap and drap_resolution == "overview":
+            prefix = "drap-cell-overview"
+            points = drap_overview_points(points)
+        if drap and drap_bbox is not None:
+            points = [point for point in points if in_bbox(point[1], point[2], *drap_bbox)]
         keys: tuple[str, ...] = meta["keys"]
         provenance_keys: tuple[str, ...] = meta.get("provenance", ())
         expanded = 0
@@ -542,11 +651,12 @@ def expand_map_objects(
             values = {str(k): v for k, v in values.items() if v is not None}
             provenance = {k: row.get(k) for k in provenance_keys if row.get(k) is not None}
             transport_event = layer in {"road_events", "aviation_hazards"}
-            if transport_event and isinstance(row.get("geometry"), dict):
+            if (transport_event or layer in {"wildfire_perimeters", "volcanic_ash"}) and isinstance(row.get("geometry"), dict):
                 provenance["event_geometry"] = row["geometry"]
                 if isinstance(row.get("event_bbox"), list):
                     provenance["event_bbox"] = row["event_bbox"]
             private: dict[str, Any] = {}
+            resolution = {"drap_resolution": drap_resolution} if drap else {}
             if include_private_geometry and layer == "smoke" and isinstance(row.get("geometry"), dict):
                 private["geometry"] = row["geometry"]
                 private["inventory_complete"] = station.get("inventory_complete") is True
@@ -558,6 +668,8 @@ def expand_map_objects(
             stable_key = str(meta.get("stable_id") or "")
             stable_raw = str(row.get(stable_key) or "") if stable_key else ""
             stable = re.sub(r"[^A-Za-z0-9_-]", "", stable_raw)[:64]
+            if parent_id in _DEVICE_CLUSTER_META and not stable:
+                continue
             explicit_id = str(row.get("point_id") or "")
             if re.fullmatch(r"gnss-station:(?:euref|ga):[A-Z0-9]{4,9}", explicit_id):
                 pin_id = explicit_id
@@ -570,12 +682,19 @@ def expand_map_objects(
             if pin_id in seen_ids:
                 # USGS station_id is the identity contract: one Atlas point per
                 # station, even if an upstream page repeats a time series row.
-                if layer == "water_quality" and stable:
+                if stable and (layer == "water_quality" or parent_id in _DEVICE_CLUSTER_META):
                     continue
                 pin_id = f"{pin_id}-{i}"
             seen_ids.add(pin_id)
-            display_label = provenance.get("title") if transport_event else None
-            display_headline = provenance.get("notice_type") if transport_event else None
+            display_label = provenance.get("title")
+            display_headline = provenance.get("notice_type") if transport_event or layer in {"volcanic_ash", "storm_reports"} else None
+            if parent_id == "bfs-odl-01" and provenance.get("station_name"):
+                display_label = f"BfS · {provenance['station_name']}"
+            elif parent_id == "entur-rail-vyg-01":
+                line_ref = str(provenance.get("line_ref") or "").rsplit(":", 1)[-1]
+                display_label = f"Entur · Vy · {line_ref}" if line_ref else "Entur · Vy"
+            elif parent_id == "aoml-drifters-01":
+                display_label = f"NOAA AOML · Drifter {stable}"
             # Slim pins — full catalog metadata on every FIRMS row froze snapshot
             # serialization (~100MB) and the asyncio loop.
             out.append(
@@ -596,11 +715,12 @@ def expand_map_objects(
                     "label": display_label or station.get("label") or parent_id,
                     "headline": display_headline or headline(layer, values),
                     **provenance,
+                    **resolution,
                     **private,
                 }
             )
             expanded += 1
-        if expanded == 0:
+        if expanded == 0 and not drap and parent_id not in _DEVICE_CLUSTER_META:
             slim = {k: v for k, v in station.items() if k != "hotspots"}
             out.append(slim)
     return [*out, *materialize_gnss_cells(out)]
@@ -769,6 +889,8 @@ async def fetch_station_reading(
             "west": west, "south": south, "east": east, "north": north,
             "limit": 10_000,
         })
+    elif device_id in REGIONAL_CLUSTER_IDS and geo_bbox is not None:
+        extra.update(zip(("west", "south", "east", "north"), geo_bbox))
     gaia_id = gaia_device_id(device_id)
     if extra:
         reading = None
@@ -803,7 +925,7 @@ async def fetch_station_reading(
             vals = r.get("values")
             if isinstance(vals, dict):
                 values = {str(k): v for k, v in vals.items()}
-            if meta["layer"] in {"road_events", "aviation_hazards"}:
+            if meta["layer"] in {"road_events", "aviation_hazards", "power_outages", "bikeshare"} or device_id in REGIONAL_CLUSTER_IDS:
                 transport_times = {key: r[key] for key in ("source_read_at", "source_published_at", "source_expires_at")
                                    if isinstance(r.get(key), str)}
             site = str(r.get("site") or site)

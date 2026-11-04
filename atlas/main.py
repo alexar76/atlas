@@ -18,7 +18,7 @@ import time
 from collections import defaultdict, deque
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Annotated, Any, AsyncIterator, Dict, List, Optional
+from typing import Annotated, Any, AsyncIterator, Dict, List, Literal, Optional
 
 import httpx
 from fastapi import FastAPI, HTTPException, Query, Request, Response
@@ -451,6 +451,8 @@ class ViewportBody(BaseModel):
     east: float = Field(..., ge=-180, le=180)
     north: float = Field(..., ge=-90, le=90)
     force: bool = False
+    include_drap: bool = True
+    include_regional: tuple[Literal["ev_charging", "fire_hotspots"], ...] = Field(default=(), max_length=2)
 
 
 @app.post("/api/v1/viewport")
@@ -464,6 +466,8 @@ async def viewport(body: ViewportBody, request: Request) -> dict[str, Any]:
         east=body.east,
         north=body.north,
         force=body.force,
+        include_drap=body.include_drap,
+        **({"include_regional": body.include_regional} if body.include_regional else {}),
     )
 
 

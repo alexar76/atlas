@@ -46,6 +46,15 @@ LAYER_COUNT_KIND: dict[str, str] = {
     "groundwater": "observations",
     "road_events": "events",
     "aviation_hazards": "events",
+    "hf_absorption": "observations",
+    "power_outages": "events",
+    "ocean_drifters": "observations",
+    "bikeshare": "stations",
+    "ev_charging": "stations",
+    "wildfire_perimeters": "events",
+    "storm_reports": "events",
+    "volcanic_ash": "events",
+    "fire_hotspots": "detections",
 }
 
 CLUSTER_COUNT_KINDS = frozenset({"detections", "observations", "events", "floats"})
@@ -87,6 +96,8 @@ def _cluster_count(station: dict[str, Any], layer: str) -> int | None:
             for row, _lat, _lon in points
             if is_actionable_water_quality_hotspot(row)
         })
+    if station.get("id") == "geonet-volcano-01" and points is not None:
+        return sum(1 for row, _lat, _lon in points if row.get("volcanic_alert_level", 0) in (1, 2, 3, 4, 5))
     if layer != "fire":
         # Non-paged feeds may advertise metadata counts only after transporting
         # the coordinate array. Without it there is nothing a person can open.
@@ -133,7 +144,7 @@ def build_layer_counts(
         count_kind = LAYER_COUNT_KIND.get(
             str(layer), "observations" if has_cluster else "stations"
         )
-        dense_station_inventory = str(layer) == "gnss"
+        dense_station_inventory = str(layer) in {"gnss", "bikeshare", "ev_charging"}
         if has_cluster and count_kind not in CLUSTER_COUNT_KINDS and not dense_station_inventory:
             count_kind = "observations"
 
@@ -146,6 +157,8 @@ def build_layer_counts(
             count: int | None = sum(known) if known else None
             if known and live_sources:
                 status = "live" if live_sources == total_sources else "partial"
+                if layer in {"ev_charging", "fire_hotspots"}:
+                    status = "partial"  # The default viewport inventory has a bounded scope.
             elif known:
                 status = "stale"
             else:

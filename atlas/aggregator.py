@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import time
 from collections import OrderedDict
 from contextvars import ContextVar
@@ -18,8 +19,12 @@ from . import fleet as fleet_mod
 from .gnss_index import integrity_counts
 from .layer_counts import build_layer_counts
 from .map_objects import (
+    COMPLETE_CLUSTER_IDS,
+    REGIONAL_CLUSTER_IDS,
+    WAVE_EXPIRING_CLUSTERS,
     is_fresh_cluster_observation,
     normalized_hotspots,
+    source_cluster_next_expiry,
     source_reading_expiry,
     without_expired_source_reading,
 )
@@ -41,6 +46,11 @@ _P4_QUERY: ContextVar[dict[str, Any] | None] = ContextVar("atlas_p4_query", defa
 # at least that UI evidence window without retaining full source payloads.
 _POINT_REGISTRY_TTL_S = 15 * 60.0
 _POINT_REGISTRY_MAX = 50_000
+_REGIONAL_LAYERS = {
+    "ev_charging": ("ndw-ev-charging-01", (3.1, 50.7, 7.3, 53.7), 4.0, 60),
+    "fire_hotspots": ("dea-hotspots-01", (110.0, -45.0, 155.0, -9.0), 1620.0, 180),
+}
+_FIRST_FLEET_EVENT_BUDGET_S = 45.0
 
 
 class Aggregator:
@@ -104,6 +114,8 @@ class Aggregator:
             history_limit=self.settings.water_quality_history_limit,
         )
         self._point_registry: OrderedDict[str, tuple[dict[str, Any], float]] = OrderedDict()
+        self._regional_cache: OrderedDict[tuple, tuple[dict[str, Any], float]] = OrderedDict()
+        self._regional_tasks: dict[tuple, asyncio.Task[dict[str, Any]]] = {}
 
     # ── test / legacy aliases ──────────────────────────────────────────────
     @property
@@ -154,8 +166,11 @@ class Aggregator:
         if item is None:
             return None
         point, seen_at = item
+        evidence_row = point
+        if point.get("parent_id") == "swpc-drap-01":
+            evidence_row = point.get("values") or {}
         if (time.monotonic() - seen_at > _POINT_REGISTRY_TTL_S
-                or not is_fresh_cluster_observation(str(point.get("parent_id") or ""), point)):
+                or not is_fresh_cluster_observation(str(point.get("parent_id") or ""), evidence_row)):
             self._point_registry.pop(point_id, None)
             return None
         self._point_registry.move_to_end(point_id)
@@ -227,6 +242,11 @@ class Aggregator:
             except asyncio.CancelledError:
                 pass
             self._task = None
+        regional_tasks = tuple(self._regional_tasks.values())
+        for task in regional_tasks:
+            task.cancel()
+        if regional_tasks:
+            await asyncio.gather(*regional_tasks, return_exceptions=True)
         await self._gaia.close()
 
     def _note_fire_matched(self, matched: int, at: float) -> None:
@@ -439,8 +459,6 @@ class Aggregator:
                 self._note_fire_matched(matched, entry["fetched_at"])
             if pin:
                 pin.update({k: v for k, v in patch.items() if v is not None or k in ("values", "hotspots")})
-                if "hotspots" in station and not station.get("hotspots"):
-                    pin.pop("hotspots", None)
             else:
                 enriched = dict(station)
                 enriched["reading_age_ms"] = age_ms
@@ -451,7 +469,9 @@ class Aggregator:
             for device_id, station in by_id.items()
         }
         snap["_source_expiry"] = min(
-            (expiry for station in by_id.values() if (expiry := source_reading_expiry(station)) is not None),
+            (expiry for station in by_id.values()
+             for expiry in (source_reading_expiry(station), source_cluster_next_expiry(station, now=wall_now))
+             if expiry is not None),
             default=float("inf"),
         )
         stations = fleet_mod.expand_fire_hotspots(list(by_id.values()), expand=False)
@@ -745,6 +765,10 @@ class Aggregator:
     async def _build_fleet_snapshot(self) -> dict[str, Any]:
         fleet = await self._invoke("gaia.fleet.status@v1")
         devices_by_id = fleet_mod.parse_fleet_devices(fleet if isinstance(fleet, dict) else None)
+        if not devices_by_id and self._fleet_by_id:
+            # A missed poll is not evidence that every device lost provenance.
+            # Keep the last confirmed registry and let the existing snapshot age.
+            raise RuntimeError("GAIA fleet unavailable; keeping last confirmed inventory")
         self._fleet_by_id = devices_by_id
         wanted_ids = fleet_mod.wanted_station_ids(devices_by_id)
         stations = [self._pin_from_catalog(did, fleet_mod.fleet_device_for(did, devices_by_id))
@@ -759,7 +783,16 @@ class Aggregator:
             event_ids = [d for d in event_ids if d != "firms-fire-01"]
         if event_ids:
             try:
-                await self._ensure_readings(event_ids, force=False)
+                first_poll = self._poll_count == 0
+                if first_poll:
+                    # Seed the new live clusters early, then publish the first
+                    # real snapshot without waiting for every unrelated upstream.
+                    new_clusters = COMPLETE_CLUSTER_IDS | {"swpc-drap-01", "bfs-odl-01", "entur-rail-vyg-01"}
+                    event_ids.sort(key=lambda device_id: device_id not in new_clusters)
+                await self._ensure_readings(
+                    event_ids, force=False,
+                    deadline_s=_FIRST_FLEET_EVENT_BUDGET_S if first_poll else None,
+                )
                 for eid in event_ids:
                     q = self._store.get_station(eid)
                     if not isinstance(q, dict):
@@ -808,12 +841,14 @@ class Aggregator:
             self._kick_warm(list(STATION_CATALOG.keys()))
         return snap
 
-    async def _fetch_station_reading(self, device_id: str) -> dict[str, Any]:
+    async def _fetch_station_reading(
+        self, device_id: str, *, regional_bbox: tuple[float, float, float, float] | None = None,
+    ) -> dict[str, Any]:
         fire_limit: int | None = None
         fire_bbox: tuple[float, float, float, float] | None = None
         fire_stratified = False
         fire_grid_deg: float | None = None
-        geo_bbox: tuple[float, float, float, float] | None = None
+        geo_bbox = regional_bbox
         meta = STATION_CATALOG.get(device_id) or {}
         if meta.get("layer") == "fire":
             q = _FIRE_QUERY.get() or {}
@@ -935,6 +970,58 @@ class Aggregator:
             stale = self._wq_view_cache.get(key)
             return (dict(stale[0]), True) if stale is not None else (None, False)
 
+    async def _regional_viewport(
+        self, layer: str, bbox: tuple[float, float, float, float], *, force: bool,
+    ) -> tuple[dict[str, Any] | None, bool]:
+        device_id, limits, maximum_area, ttl = _REGIONAL_LAYERS[layer]
+        if device_id not in self._fleet_by_id:
+            return None, False
+        west, south, east, north = bbox
+        if west >= east:
+            return None, False
+        left, bottom, right, top = limits
+        region = (
+            max(left, math.floor(west * 100) / 100), max(bottom, math.floor(south * 100) / 100),
+            min(right, math.ceil(east * 100) / 100), min(top, math.ceil(north * 100) / 100),
+        )
+        x1, y1, x2, y2 = region
+        if x1 >= x2 or y1 >= y2 or (x2 - x1) * (y2 - y1) > maximum_area or region == limits:
+            return None, False
+        key = (device_id, *region)
+        cached = self._regional_cache.get(key)
+        if not force and cached and time.monotonic() - cached[1] < ttl:
+            self._regional_cache.move_to_end(key)
+            return cached[0], False
+        task = self._regional_tasks.get(key)
+        if task is None:
+            if len(self._regional_tasks) >= 6:
+                return None, False
+
+            async def fetch() -> dict[str, Any]:
+                station = await self._fetch_station_reading(device_id, regional_bbox=region)
+                self._regional_cache[key] = (station, time.monotonic())
+                self._regional_cache.move_to_end(key)
+                while len(self._regional_cache) > 16:
+                    self._regional_cache.popitem(last=False)
+                return station
+
+            task = asyncio.create_task(fetch())
+            self._regional_tasks[key] = task
+
+            def settled(done: asyncio.Task[dict[str, Any]]) -> None:
+                self._regional_tasks.pop(key, None)
+                if not done.cancelled() and done.exception() is not None:
+                    log.debug("regional viewport %s failed: %s", device_id, done.exception())
+
+            task.add_done_callback(settled)
+        try:
+            budget = None if force else float(self.settings.viewport_budget_s or 2.0)
+            return await asyncio.wait_for(asyncio.shield(task), timeout=budget), False
+        except asyncio.TimeoutError:
+            return None, True
+        except Exception:
+            return None, False
+
     async def refresh_viewport(
         self,
         *,
@@ -943,9 +1030,13 @@ class Aggregator:
         east: float,
         north: float,
         force: bool = False,
+        include_drap: bool = True,
+        include_regional: tuple[str, ...] = (),
     ) -> dict[str, Any]:
         # Accept any client viewport (Analyst bbox is not schema-validated).
         west, south, east, north = normalize_bbox(west, south, east, north)
+        drap_resolution = "native" if lon_span(west, east) <= 120 and north - south <= 60 else "overview"
+        drap_id = "swpc-drap-01"
         if not (self._snapshot.get("stations") or []):
             # Right after a restart the fleet loop is already building this
             # snapshot. Calling refresh_fleet() here too made the first request
@@ -974,6 +1065,7 @@ class Aggregator:
                     "in_flight": self._store.in_flight,
                     "stations": [],
                     "map_points": [],
+                    "drap_resolution": drap_resolution,
                     "quakes": list(self._quake_trail),
                     "snapshot": self.snapshot(),
                     "fire_query": None,
@@ -984,8 +1076,12 @@ class Aggregator:
         ids = [
             i
             for i in station_ids_in_bbox(stations_snap, west, south, east, north)
-            if i in STATION_CATALOG
+            if i in STATION_CATALOG and i != drap_id
         ]
+        if include_drap and drap_id in self._fleet_by_id:
+            # The model covers the whole world; its catalog anchor is just a
+            # placeholder and must not control when a regional view refreshes it.
+            ids.insert(0, drap_id)
         ttl = self.settings.reading_ttl_s
         cache_hits = sum(
             1
@@ -1137,7 +1233,7 @@ class Aggregator:
                 for i in station_ids_in_bbox(
                     stations_snap, west, south, east, north, pad_deg=pad
                 )
-                if i not in ids and i in STATION_CATALOG
+                if i not in ids and i in STATION_CATALOG and i != drap_id
             ]
         # Prefetch the padded ring only — full-catalog warm on every pan stampeded
         # GAIA (429) and starved FIRMS densify. Fleet poll still warms the rest.
@@ -1147,18 +1243,38 @@ class Aggregator:
         public = self.snapshot()
         # Map points: expand dense clusters for this camera (client merges into cache).
         dense_parents = self._dense_parent_stations()
+        if not include_drap:
+            dense_parents = [parent for parent in dense_parents if parent.get("id") != drap_id]
         if p4_station is not None:
             dense_parents = [
                 parent for parent in dense_parents if parent.get("id") != "usgs-wq-01"
             ]
             dense_parents.append(p4_station)
-        map_points = fleet_mod.expand_map_objects(dense_parents, expand=True)
+        if include_regional:
+            requested_layers = dict.fromkeys(layer for layer in include_regional if layer in _REGIONAL_LAYERS)
+            regional = await asyncio.gather(*(
+                self._regional_viewport(layer, (west, south, east, north), force=force)
+                for layer in requested_layers
+            ))
+            for layer, (regional_station, warming) in zip(requested_layers, regional):
+                device_id = _REGIONAL_LAYERS[layer][0]
+                if regional_station is not None:
+                    dense_parents = [parent for parent in dense_parents if parent.get("id") != device_id]
+                    dense_parents.append(regional_station)
+                elif warming:
+                    pending_ids.append(device_id)
+        # Keep only points that fall in a lightly padded camera bbox. Filter
+        # the native D-RAP grid before expanding to avoid 8,100 Python objects
+        # and browser features for each regional viewport.
+        map_pad = 2.0
+        mw, ms, me, mn = expand_bbox(west, south, east, north, map_pad)
+        map_points = fleet_mod.expand_map_objects(
+            dense_parents, expand=True,
+            drap_resolution=drap_resolution, drap_bbox=(mw, ms, me, mn),
+        )
         for point in map_points:
             if isinstance(point, dict) and point.get("layer") == "water_quality":
                 point.update(self._wq_history.summary(str(point.get("station_id") or "")))
-        # Keep only points that fall in a lightly padded camera bbox.
-        map_pad = 2.0
-        mw, ms, me, mn = expand_bbox(west, south, east, north, map_pad)
         def _in_view(p: dict[str, Any]) -> bool:
             bounds = p.get("event_bbox")
             if isinstance(bounds, list) and len(bounds) == 4:
@@ -1185,14 +1301,14 @@ class Aggregator:
         # / situation.brief double-count the headline pin plus its cluster. Computed
         # against the pins actually in `map_points`, so a parent whose detections are
         # all outside the viewport still draws: there is nothing here to double it.
-        replaced = self._replaced_parent_ids(dense_parents, map_points)
+        replaced = self._replaced_parent_ids(dense_parents, map_points) | WAVE_EXPIRING_CLUSTERS
         for s in public.get("stations") or []:
             if not isinstance(s, dict):
                 continue
             sid = str(s.get("id") or "")
             if sid.startswith(fleet_mod.DENSE_PIN_PREFIXES):
                 continue
-            if sid in replaced:
+            if sid in replaced or sid == drap_id:
                 continue
             if _in_view(s):
                 map_points.append(s)
@@ -1212,6 +1328,35 @@ class Aggregator:
                 (fire_query_meta or {}).get("limit") or 0
             )
 
+        regional_coverage = {}
+        for parent in dense_parents:
+            if parent.get("id") not in REGIONAL_CLUSTER_IDS:
+                continue
+            current = without_expired_source_reading(parent, now=time.time())
+            values = current.get("values") or {}
+            bbox_values = {axis: values.get(f"bbox_{axis}_deg") for axis in ("west", "south", "east", "north")}
+            if not all(isinstance(value, (int, float)) for value in bbox_values.values()):
+                continue
+            regional_coverage[parent["id"]] = {
+                "bbox": bbox_values, "complete": values.get("coverage_complete") == 1,
+                "count": parent.get("hotspot_count", 0),
+                "matched": values.get("hotspot_matched", parent.get("inventory_total")),
+            }
+        completed_scopes = {key: row["bbox"] for key, row in regional_coverage.items() if row["complete"]}
+        if completed_scopes:
+            present_ids = {point.get("id") for point in map_points}
+            retired = []
+            for point_id, (point, _) in self._point_registry.items():
+                bounds = completed_scopes.get(point.get("parent_id"))
+                if not bounds or point_id in present_ids:
+                    continue
+                lat, lon = point["lat"], point["lon"]
+                if in_bbox(lat, lon, west, south, east, north) and in_bbox(
+                    lat, lon, bounds["west"], bounds["south"], bounds["east"], bounds["north"],
+                ):
+                    retired.append(point_id)
+            for point_id in retired:
+                self._point_registry.pop(point_id, None)
         self._remember_map_points(map_points)
 
         return {
@@ -1237,6 +1382,12 @@ class Aggregator:
                 expand=False,
             ),
             "map_points": map_points,
+            "complete_clusters": sorted({
+                str(parent["id"]) for parent in dense_parents if parent.get("id") in COMPLETE_CLUSTER_IDS
+                and not parent.get("stale") and (parent.get("values") or {}).get("coverage_complete", 1) == 1
+            }),
+            "regional_coverage": regional_coverage,
+            "drap_resolution": drap_resolution,
             "quakes": list(self._quake_trail),
             "snapshot": public,
             "fire_query": fire_query_meta,
@@ -1273,6 +1424,13 @@ class Aggregator:
         layer = str(decoded.get("layer") or "")
         lat = float(decoded["lat"])
         lon = float(decoded["lon"])
+        if decoded.get("prefix") == "drap-cell-overview":
+            for pin in fleet_mod.expand_map_objects(
+                self._layer_parents(layer), drap_resolution="overview", drap_bbox=(lon, lat, lon, lat),
+            ):
+                if pin.get("id") == device_id:
+                    return build_detail(pin, cached=True, age_ms=0)
+            return self._dropped_pin_detail(device_id, decoded)
         best: tuple[dict[str, Any], dict[str, Any]] | None = None
         best_dist: float | None = None
         for parent in self._layer_parents(layer):
@@ -1415,6 +1573,8 @@ class Aggregator:
             if sid and sid not in seen:
                 out.append(pin)
                 seen.add(sid)
+        # Keep configured feed records discoverable, after observed map points.
+        out.sort(key=lambda station: station.get("id") in WAVE_EXPIRING_CLUSTERS)
         return out
 
     async def product_stations_for_bbox(
@@ -1427,17 +1587,36 @@ class Aggregator:
     async def station_detail(self, device_id: str, *, fresh: bool = False) -> dict[str, Any]:
         # Expanded event pins — rebuild from the reading-store clusters.
         if device_id.startswith(fleet_mod.DENSE_PIN_PREFIXES):
+            drap = device_id.startswith("drap-cell-")
+            parents = [
+                parent for parent in self._dense_parent_stations()
+                if (parent.get("id") == "swpc-drap-01") == drap
+            ]
+            drap_bbox = None
+            drap_resolution = "native"
+            if drap and (decoded := fleet_mod.dense_pin_from_id(device_id)):
+                lon, lat = decoded["lon"], decoded["lat"]
+                drap_bbox = (lon, lat, lon, lat)
+                if decoded["prefix"] == "drap-cell-overview":
+                    drap_resolution = "overview"
             pin = next(
                 (
                     item for item in fleet_mod.expand_map_objects(
-                        self._dense_parent_stations(), expand=True
+                        parents, drap_bbox=drap_bbox, drap_resolution=drap_resolution,
                     )
                     if isinstance(item, dict) and item.get("id") == device_id
                 ),
                 None,
             )
+            if device_id.startswith(("dotnl-charge-", "dea-hotspot-")):
+                pin = self._recent_map_point(device_id) or pin
             if pin is None:
                 pin = self._recent_map_point(device_id)
+                if pin and pin.get("parent_id") in COMPLETE_CLUSTER_IDS:
+                    parent = self._store.get_station(str(pin["parent_id"])) or {}
+                    if isinstance(parent.get("hotspots"), list):
+                        # A complete snapshot supersedes a formerly served point.
+                        pin = None
             if isinstance(pin, dict):
                 parent = self._store.get_station(str(pin.get("parent_id") or "")) or {}
                 if isinstance(parent.get("upstream_evidence"), dict):

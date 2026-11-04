@@ -28,6 +28,16 @@
     ensureSources,
     inBbox,
   } = lib;
+  const COMPLETE_CLUSTERS = new Set([
+    "toronto-road-restrictions-01", "toronto-bikeshare-01", "ukpn-live-faults-01", "aoml-drifters-01",
+    "bc-wildfire-01", "geonet-volcano-01", "noaa-spc-storm-reports-01", "noaa-vaac-ash-01",
+  ]);
+  const REGIONAL_LAYERS = ["ev_charging", "fire_hotspots"];
+  const REGIONAL_PARENTS = new Set(["ndw-ev-charging-01", "dea-hotspots-01"]);
+  const VIEWPORT_LAYERS = new Set([
+    "road_events", "power_outages", "bikeshare", "bridge_clearance", "ocean_drifters", "hf_absorption",
+    "wildfire_perimeters", "volcanic_ash", "storm_reports", ...REGIONAL_LAYERS,
+  ]);
 
   function mount(opts) {
     const mode = opts.mode || "full";
@@ -56,8 +66,11 @@
     let map = null;
     let es = null;
     let viewportBusy = false;
+    let viewportLayerRevision = 0;
     let lastBboxKey = "";
     let activePopup = null;
+    let sourceExpiryTimer = null;
+    let drapResolution = null;
     let mapReady = false;
     let lastPushAt = 0;
     // Session cache: every point ever shown, keyed by id. Region keys skip
@@ -66,7 +79,7 @@
     const pointCache = new Map();
     const regionCache = new Map(); // key → merged-at ms
     const REGION_TTL_MS = 10 * 60 * 1000;
-    const ROAD_REGION_TTL_MS = 2 * 60 * 1000;
+    const FAST_REGION_TTL_MS = 2 * 60 * 1000;
     const EVENT_PIN_TTL_MS = 15 * 60 * 1000;
     // Comfortably under the pin TTL so event layers are re-merged before they expire.
     const EVENT_PIN_REFRESH_MS = 5 * 60 * 1000;
@@ -459,6 +472,27 @@
       return normalizeBbox(map);
     }
 
+    function drapResolutionFor(bbox) {
+      const lonSpan = bbox.east >= bbox.west
+        ? bbox.east - bbox.west : 360 - bbox.west + bbox.east;
+      return lonSpan <= 120 && bbox.north - bbox.south <= 60 ? "native" : "overview";
+    }
+
+    function drapPointResolution(point) {
+      const id = String(point.id || "");
+      if (!id.startsWith("drap-cell-")) return null;
+      return point.drap_resolution || (id.startsWith("drap-cell-overview-") ? "overview" : "native");
+    }
+
+    function setDrapResolution(resolution) {
+      if (drapResolution === resolution) return;
+      for (const [id, point] of pointCache) {
+        if (drapPointResolution(point)) pointCache.delete(id);
+      }
+      regionCache.clear();
+      drapResolution = resolution;
+    }
+
     function setHud(snap) {
       const pill = el("status-pill");
       if (pill) {
@@ -546,16 +580,59 @@
       return parents;
     }
 
-    function expiredSourcePoint(point, now) {
-      if (point.layer === "road_events" || point.layer === "aviation_hazards") {
-        return Date.parse(point.valid_until || point.valid_at) <= now
-          || Date.parse(point.source_expires_at) <= now
-          || (point.layer === "road_events" && Date.parse(point.source_read_at) + 30 * 60 * 1000 <= now);
-      }
+    function epochExpiry(value, ageMs = 0) {
+      return Number.isFinite(value) ? value * 1000 + ageMs : Infinity;
+    }
+
+    function dateExpiry(value, ageMs = 0) {
+      const ts = Date.parse(value);
+      return Number.isFinite(ts) ? ts + ageMs : Infinity;
+    }
+
+    function sourcePointExpiry(point) {
       const id = String(point.id || "");
-      const hours = id.startsWith("fmi-marine-") ? 2 : id.startsWith("snotel-") ? 6 : 0;
-      const observed = point.values?.observation_unix;
-      return hours > 0 && Number.isFinite(observed) && (observed + hours * 3600) * 1000 <= now;
+      const values = point.values || {};
+      if (["dotnl-charge-", "bc-fire-", "geonet-volcano-status-", "spc-report-", "vaac-ash-", "dea-hotspot-"].some(prefix => id.startsWith(prefix))) {
+        const end = Date.parse(point.valid_until);
+        return Number.isFinite(end) ? end : 0;
+      }
+      if (id.startsWith("toronto-road-notice-")) {
+        const end = Date.parse(point.valid_until);
+        const sourceEnd = Date.parse(point.source_expires_at);
+        return Number.isFinite(end) && Number.isFinite(sourceEnd) ? Math.min(end, sourceEnd) : 0;
+      }
+      if (point.layer === "road_events" || point.layer === "aviation_hazards") {
+        return Math.min(
+          dateExpiry(point.valid_until || point.valid_at),
+          dateExpiry(point.source_expires_at),
+          point.layer === "road_events" ? dateExpiry(point.source_read_at, 30 * 60 * 1000) : Infinity,
+        );
+      }
+      if (id.startsWith("entur-tr-")) return dateExpiry(point.valid_until);
+      if (id.startsWith("ukpn-fault-")) {
+        const end = Date.parse(point.valid_until);
+        return Number.isFinite(end) ? end : 0;
+      }
+      if (id.startsWith("toronto-bike-st-")) {
+        const end = Date.parse(point.valid_until);
+        const observed = values.observation_unix;
+        return Number.isFinite(end) && Number.isFinite(observed) ? Math.min(end, observed * 1000 + 300000) : 0;
+      }
+      if (id.startsWith("noaa-airgap-") || id.startsWith("aoml-drifter-")) {
+        const observed = values.observation_unix;
+        const age = id.startsWith("noaa-airgap-") ? 18 * 60 : 6 * 3600;
+        return Number.isFinite(observed) ? (observed + age) * 1000 : 0;
+      }
+      if (id.startsWith("drap-cell-")) return epochExpiry(values.forecast_valid_unix, 15 * 60 * 1000);
+      if (id.startsWith("eccc-smoke-")) {
+        return Math.min(epochExpiry(values.forecast_valid_unix), epochExpiry(values.forecast_run_unix, 18 * 3600 * 1000));
+      }
+      let minutes = 0;
+      if (id.startsWith("geonet-coastal-")) minutes = 5;
+      else if (["chmi-river-", "arso-river-", "kartverket-tide-", "bfs-odl-st-", "fmi-marine-", "ch-pollen-", "ie-buoy-", "au-wave-"].some(prefix => id.startsWith(prefix))) minutes = 120;
+      else if (id.startsWith("smhi-ocean-")) minutes = 180;
+      else if (id.startsWith("snotel-")) minutes = 360;
+      return minutes ? epochExpiry(values.observation_unix, minutes * 60 * 1000) : Infinity;
     }
 
     function currentSourceTime() {
@@ -572,7 +649,8 @@
       for (const item of pointCache.values()) {
         if (!item || !item.layer || !Number.isFinite(item.lat) || !Number.isFinite(item.lon)) continue;
         if (item.cluster_parent) continue;
-        if (expiredSourcePoint(item, serverNow)) continue;
+        if (drapPointResolution(item) && drapPointResolution(item) !== drapResolutionFor(bbox)) continue;
+        if (sourcePointExpiry(item) <= serverNow) continue;
         if (item.kind === "event" && item._at && now - item._at > EVENT_PIN_TTL_MS) continue;
         if (expandedParents.has(String(item.id))) continue;
         if (!(item.online || item.has_reading)) continue;
@@ -648,6 +726,15 @@
           enabled[key] = !enabled[key];
           paintFromCache();
           renderLayers(snapshot);
+          if (key === "hf_absorption") {
+            setDrapResolution(null);
+          }
+          if (VIEWPORT_LAYERS.has(key)) {
+            viewportLayerRevision += 1;
+            regionCache.clear();
+            lastBboxKey = "";
+            refreshViewport(false);
+          }
         });
         host.appendChild(row);
       }
@@ -740,7 +827,9 @@
         if (!p || !p.id) continue;
         if (!Number.isFinite(p.lat) || !Number.isFinite(p.lon)) continue;
         const id = String(p.id);
-        if ((p.layer === "road_events" || p.layer === "aviation_hazards") && p.cluster_parent
+        const pointResolution = drapPointResolution(p);
+        if (pointResolution && pointResolution !== drapResolution) continue;
+        if (!COMPLETE_CLUSTERS.has(id) && (p.layer === "road_events" || p.layer === "aviation_hazards" || id === "entur-rail-vyg-01") && p.cluster_parent
             && p.hotspot_count === 0 && pointCache.get(id)?.hotspot_count !== 0) {
           for (const [key, point] of pointCache) {
             if (point.parent_id === id) pointCache.delete(key);
@@ -751,17 +840,58 @@
       }
     }
 
+    function retireCompleteClusterPins(complete, points, bbox) {
+      if (!Array.isArray(complete) || !complete.length) return;
+      const parents = new Set(complete.filter((id) => COMPLETE_CLUSTERS.has(id)));
+      const freshIds = new Set(points.map((point) => String(point?.id || "")));
+      const empty = new Set([...parents].filter((id) => {
+        const parent = pointCache.get(id);
+        return parent?.hotspot_count === 0 && parent.has_reading === true && !parent.stale
+          && dateExpiry(parent.source_expires_at) > currentSourceTime();
+      }));
+      for (const [id, point] of pointCache) {
+        if (parents.has(point.parent_id) && !freshIds.has(id) && (empty.has(point.parent_id) || inBbox(point, bbox))) {
+          pointCache.delete(id);
+        }
+      }
+    }
+
+    function retireRegionalPins(coverage, points, viewport) {
+      if (!coverage || typeof coverage !== "object") return;
+      const ids = new Set(points.map(point => point.id));
+      for (const [parent, scope] of Object.entries(coverage)) {
+        if (!REGIONAL_PARENTS.has(parent) || !scope?.complete || !scope.bbox) continue;
+        for (const [id, point] of pointCache) {
+          if (point.parent_id === parent && !ids.has(id) && inBbox(point, scope.bbox) && inBbox(point, viewport)) {
+            pointCache.delete(id);
+          }
+        }
+      }
+    }
+
     function markRegions(b) {
       const z = map ? map.getZoom() : 3;
       const at = Date.now();
       for (const k of regionKeysForBbox(b, z)) regionCache.set(k, at);
     }
 
+    function fastViewportAt(b) {
+      if (enabled.road_events || enabled.hf_absorption) return true;
+      for (const point of pointCache.values()) {
+        if (enabled[point.layer] === false) continue;
+        const id = String(point.id || "");
+        if ((point.layer === "bikeshare" || point.layer === "power_outages" || point.layer === "bridge_clearance"
+             || REGIONAL_LAYERS.includes(point.layer)
+             || id.startsWith("geonet-coastal-") || id.startsWith("entur-tr-")) && inBbox(point, b)) return true;
+      }
+      return false;
+    }
+
     function regionsCached(b) {
       const z = map ? map.getZoom() : 3;
       const keys = regionKeysForBbox(b, z);
       const now = Date.now();
-      const ttl = enabled.road_events ? ROAD_REGION_TTL_MS : REGION_TTL_MS;
+      const ttl = fastViewportAt(b) ? FAST_REGION_TTL_MS : REGION_TTL_MS;
       return (
         keys.length > 0 &&
         keys.every((k) => {
@@ -783,17 +913,28 @@
       const now = Date.now();
       const serverNow = currentSourceTime();
       const expandedParents = expandedParentIds(now);
+      const wantedDrapResolution = drapResolutionFor(b);
       for (const s of pointCache.values()) {
         if (enabled[s.layer] === false) continue;
         if (s.cluster_parent) continue;
-        if (expiredSourcePoint(s, serverNow)) continue;
+        const pointResolution = drapPointResolution(s);
+        if (pointResolution && pointResolution !== wantedDrapResolution) continue;
         // Event detections roll (FIRMS is a 24h feed) — drop ghosts the server
         // stopped sending instead of painting them forever.
         if (s.kind === "event" && s._at && now - s._at > EVENT_PIN_TTL_MS) continue;
         // Once a parent SKU has been expanded, paint/count its actionable
         // children only. Otherwise the summary pin becomes a fake extra event.
         if (expandedParents.has(String(s.id))) continue;
-        if (inBbox(s, view)) out.push(s);
+        if (!inBbox(s, view)) continue;
+        if (sourcePointExpiry(s) <= serverNow) {
+          // A fixed station stays at its real coordinates while awaiting a
+          // fresh observation. Expired moving and expanded events disappear.
+          if (!s.parent_id && s.kind === "point") {
+            out.push({ ...s, values: {}, headline: "", online: false, has_reading: false });
+          }
+          continue;
+        }
+        out.push(s);
       }
       return out;
     }
@@ -802,6 +943,16 @@
       if (!mapReady || !map) return;
       const b = currentBbox();
       const pts = pointsInView(b, 3);
+      clearTimeout(sourceExpiryTimer);
+      const now = currentSourceTime();
+      let nextExpiry = Infinity;
+      for (const point of pts) {
+        const expiry = sourcePointExpiry(point);
+        if (expiry > now && expiry < nextExpiry) nextExpiry = expiry;
+      }
+      if (Number.isFinite(nextExpiry)) {
+        sourceExpiryTimer = setTimeout(paintFromCache, Math.min(2 ** 31 - 1, nextExpiry - now + 10));
+      }
       setSensorData(map, pts, snapshot?.quakes || [], enabled);
       setHud(snapshot);
       if (mode === "full") {
@@ -839,14 +990,23 @@
       return r.json();
     }
 
+    function viewportBoundsKey(bbox) {
+      return [bbox.west, bbox.south, bbox.east, bbox.north].map(edge => edge.toFixed(2)).join("|");
+    }
+
     async function refreshViewport(force) {
       if (!map || viewportBusy) return;
       const bbox = currentBbox();
-      const key = [bbox.west.toFixed(2), bbox.south.toFixed(2), bbox.east.toFixed(2), bbox.north.toFixed(2), !!force].join("|");
+      const boundsKey = viewportBoundsKey(bbox);
+      const layerRevision = viewportLayerRevision;
+      const includeDrap = enabled.hf_absorption === true;
+      const includeRegional = REGIONAL_LAYERS.filter(layer => enabled[layer] === true);
+      const wantedDrapResolution = includeDrap ? drapResolutionFor(bbox) : null;
+      const key = [boundsKey, !!force, wantedDrapResolution, ...includeRegional].join("|");
       if (!force && key === lastBboxKey) return;
       // Instant paint from session cache while (or instead of) fetching.
       paintFromCache();
-      const cached = !force && regionsCached(bbox);
+      const cached = !force && wantedDrapResolution === drapResolution && regionsCached(bbox);
       if (cached) {
         lastBboxKey = key;
         const hint = el("viewport-hint");
@@ -880,18 +1040,32 @@
         const r = await fetch("/api/v1/viewport", {
           method: "POST",
           headers: { "content-type": "application/json", accept: "application/json" },
-          body: JSON.stringify({ ...bbox, force: !!force }),
+          body: JSON.stringify({ ...bbox, force: !!force, include_drap: includeDrap, include_regional: includeRegional }),
         });
         if (!r.ok) throw new Error("viewport " + r.status);
         const data = await r.json();
         lastBboxKey = key;
-        markRegions(bbox);
+        if (includeDrap && enabled.hf_absorption && ["native", "overview"].includes(data.drap_resolution)) {
+          setDrapResolution(data.drap_resolution);
+        }
+        const regionalPending = data.pending?.some(id => REGIONAL_PARENTS.has(id));
+        if (regionalPending) {
+          setTimeout(() => {
+            lastBboxKey = "";
+            refreshViewport(false);
+          }, 3500);
+        } else if (viewportBoundsKey(currentBbox()) === boundsKey) {
+          markRegions(bbox);
+        }
         if (data.snapshot) {
           snapshot = data.snapshot;
           rememberSourceClock(snapshot);
           mergePoints(data.snapshot.stations || []);
         }
-        mergePoints(data.map_points || []);
+        const points = data.map_points || [];
+        retireCompleteClusterPins(data.complete_clusters, points, data.bbox || bbox);
+        retireRegionalPins(data.regional_coverage, points, data.bbox || bbox);
+        mergePoints(points);
         // Parent stations from ensure_readings may carry values without lat for events —
         // map_points already expanded.
         paintFromCache();
@@ -913,6 +1087,14 @@
         console.warn(err);
       } finally {
         viewportBusy = false;
+        const currentBounds = currentBbox();
+        const currentDrapResolution = enabled.hf_absorption ? drapResolutionFor(currentBounds) : null;
+        const scopeChanged = currentDrapResolution !== wantedDrapResolution || layerRevision !== viewportLayerRevision;
+        if (scopeChanged || viewportBoundsKey(currentBounds) !== boundsKey) {
+          if (scopeChanged) regionCache.clear();
+          lastBboxKey = "";
+          refreshViewport(false);
+        }
       }
     }
 
@@ -1045,6 +1227,30 @@
           (m.hint ? `<span class="hint">${esc(m.hint)}</span>` : "");
         metrics.appendChild(row);
       }
+      for (const connector of Array.isArray(detail.connectors) ? detail.connectors : []) {
+        const row = document.createElement("div");
+        row.className = "metric";
+        row.textContent = `${connector.type} · ${connector.available}/${connector.total} · ${connector.power_kw} kW`;
+        metrics.appendChild(row);
+      }
+      for (const camera of Array.isArray(detail.cameras) ? detail.cameras : []) {
+        const captured = Date.parse(camera.observed_at);
+        if (!/^https:\/\/images\.geonet\.org\.nz\/volcano\/cameras\/latest\/t-[A-Za-z0-9_-]+\.jpg\?v=\d+$/.test(camera.url || "")
+            || !Number.isFinite(captured) || currentSourceTime() - captured > 30 * 60 * 1000) continue;
+        const row = document.createElement("div");
+        row.className = "metric volcano-camera";
+        const image = document.createElement("img");
+        image.src = camera.url;
+        image.alt = camera.caption || "GeoNet";
+        image.referrerPolicy = "no-referrer";
+        image.loading = "lazy";
+        image.style.maxWidth = "100%";
+        const caption = document.createElement("span");
+        caption.className = "hint";
+        caption.textContent = `${image.alt} · ${new Date(captured).toISOString().replace("T", " ").slice(0, 16)} UTC`;
+        row.append(image, caption);
+        metrics.appendChild(row);
+      }
       renderDetailActions(detail);
       const meta = [];
       if (detail.id) meta.push(tr("detail.device", { value: detail.id }));
@@ -1108,7 +1314,8 @@
         return;
       }
       try {
-        if (snapshot) {
+        if (snapshot && !COMPLETE_CLUSTERS.has(detail.parent_id) && !REGIONAL_PARENTS.has(detail.parent_id)
+            && !String(deviceId).startsWith("noaa-airgap-")) {
           const prev = pointCache.get(String(deviceId)) || {};
           const merged = {
             ...prev,
@@ -1258,9 +1465,38 @@
     }, 450));
 
     map.on("click", "stations-core", (e) => {
-      const f = e.features && e.features[0];
-      if (!f) return;
-      openDetail(f.properties.id);
+      const first = e.features?.[0];
+      if (!first) return;
+      const [lon, lat] = first.geometry.coordinates;
+      const colocated = new Map();
+      for (const feature of e.features) {
+        const [x, y] = feature.geometry.coordinates;
+        if (x === lon && y === lat) colocated.set(feature.properties.id, feature.properties.label);
+      }
+      if (colocated.size < 2) {
+        openDetail(first.properties.id);
+        return;
+      }
+      closeDetail();
+      const choices = document.createElement("div");
+      choices.setAttribute("role", "group");
+      choices.setAttribute("aria-label", tr("layer.countKind.stations"));
+      for (const [id, label] of colocated) {
+        const button = document.createElement("button");
+        button.className = "detail-action";
+        button.type = "button";
+        button.textContent = label || id;
+        button.addEventListener("click", () => {
+          closeDetail();
+          openDetail(id);
+        });
+        choices.appendChild(button);
+      }
+      activePopup = new maplibregl.Popup({ offset: 14, closeButton: true, maxWidth: "280px" })
+        .setLngLat(e.lngLat)
+        .setDOMContent(choices)
+        .addTo(map);
+      choices.querySelector("button")?.focus();
     });
     map.on("click", "gnss-cells-fill", (e) => {
       const f = e.features && e.features[0];
@@ -1356,13 +1592,13 @@
     // under a header still counting 115,683 detections. Station pins have no TTL,
     // which is why those stayed and made it look like a fires-only outage.
     //
-    // A displayed road layer needs a shorter cadence for NDW's five-minute
-    // snapshots. The region cache still controls when a request goes out.
+    // Faster feeds near the camera use a shorter cadence. The region cache
+    // still controls when a request goes out.
     let lastEventRefreshAt = Date.now();
     setInterval(() => {
       if (typeof document !== "undefined" && document.hidden) return;
       const now = Date.now();
-      const interval = enabled.road_events ? 60 * 1000 : EVENT_PIN_REFRESH_MS;
+      const interval = fastViewportAt(currentBbox()) ? 60 * 1000 : EVENT_PIN_REFRESH_MS;
       if (now - lastEventRefreshAt < interval) return;
       lastEventRefreshAt = now;
       lastBboxKey = "";

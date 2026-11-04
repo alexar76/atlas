@@ -1735,7 +1735,233 @@ for _id, _lat, _lon, _place in (
     }
 
 
+for _did, _layer, _cap, _lat, _lon, _label, _place, _ttl, _kind in (
+    ("bfs-odl-01", "radiation", "radiation.ambient", 52.52, 13.41,
+     "BfS ambient gamma dose rate", "Germany", 300, "event"),
+    ("entur-rail-vyg-01", "rail", "rail", 59.91, 10.75,
+     "Entur · Vy train positions", "Norway", 90, "event"),
+    ("swpc-drap-01", "hf_absorption", "hf.absorption", 0, 0,
+     "NOAA SWPC D-RAP", "Global model grid", 120, "event"),
+    *(
+        (f"geonet-coastal-{_id}", "tide", "tide", _lat, _lon,
+         f"GeoNet · {_name}", f"{_name}, New Zealand", 90, "point")
+        for _id, _lat, _lon, _name in (
+            ("auct", -36.8314, 174.7865, "Auckland"),
+            ("wlgt", -41.2845, 174.7799, "Wellington"),
+            ("taut", -37.6411, 176.1812, "Tauranga"),
+            ("gist", -38.6754, 178.0229, "Gisborne"),
+            ("jbtt", -43.9737, 168.6157, "Jackson Bay"),
+        )
+    ),
+    *(
+        (f"chmi-river-{_id}", "river", "river", _lat, _lon,
+         f"CHMI · {_name}", f"{_name}, Czechia", 300, "point")
+        for _id, _lat, _lon, _name in (
+            ("042000", 50.0946613, 15.8067603, "Němčice"),
+            ("101800", 50.2486875, 14.7753034, "Předměřice"),
+            ("200100", 50.0274827, 14.3968736, "Praha–Chuchle"),
+        )
+    ),
+    *(
+        (f"smhi-ocean-{_id}", "ocean_obs", "ocean.observations", _lat, _lon,
+         f"SMHI · {_name} · {_depth}", f"{_name}, Sweden", 600, "point")
+        for _id, _lat, _lon, _name, _depth in (
+            ("flinten16-8m", 55.561, 12.8095, "Flinten 16", "8 m"),
+            ("flinten16-2m", 55.561, 12.8095, "Flinten 16", "2 m"),
+            ("flinten7-8m", 55.5894, 12.8445, "Flinten 7", "8 m"),
+            ("kalmar2-0m", 56.6589, 16.3782, "Kalmar 2", "0 m"),
+        )
+    ),
+    *(
+        (f"eccc-smoke-{_name.lower()}", "smoke_forecast", "smoke.forecast", _lat, _lon,
+         f"ECCC smoke forecast · {_name}", _name, 300, "point")
+        for _name, _lat, _lon in (
+            ("Seattle", 47.610, -122.340),
+            ("Toronto", 43.650, -79.380),
+            ("Calgary", 51.050, -114.070),
+        )
+    ),
+):
+    STATION_CATALOG[_did] = {
+        "layer": _layer, "label": _label, "capability": f"gaia.{_cap}.read@v1",
+        "lat": _lat, "lon": _lon, "place": _place, "kind": _kind, "mode": "live",
+        "max_ttl_s": _ttl,
+    }
+
+
+for _station_id, _lat, _lon, _name in (
+    ("1060", 46.68124, 15.9953, "Gornja Radgona I"),
+    ("3660", 46.05684, 14.82877, "Litija"),
+    ("5078", 46.05542, 14.54443, "Moste I"),
+    ("8080", 46.24748, 13.58641, "Kobarid I"),
+):
+    STATION_CATALOG[f"arso-river-{_station_id}"] = {
+        "layer": "river", "capability": "gaia.river.read@v1", "kind": "point", "mode": "live",
+        "label": f"ARSO · {_name}", "place": f"{_name}, Slovenia", "lat": _lat, "lon": _lon,
+    }
+
+for _station_id, _lat, _lon, _name in (
+    ("bgo", 60.398046, 5.320487, "Bergen"),
+    ("osl", 59.908559, 10.734510, "Oslo"),
+    ("svg", 58.974339, 5.730121, "Stavanger"),
+    ("tos", 69.646110, 18.954790, "Tromsø"),
+    ("trd", 63.436484, 10.391669, "Trondheim"),
+):
+    STATION_CATALOG[f"kartverket-tide-{_station_id}"] = {
+        "layer": "tide", "capability": "gaia.tide.read@v1", "kind": "point", "mode": "live",
+        "label": f"Kartverket · {_name}", "place": f"{_name}, Norway", "lat": _lat, "lon": _lon,
+    }
+
+for _station_id, _lat, _lon, _name in (
+    ("8726371", 27.620583, -82.65581, "Sunshine Skyway Bridge"),
+    ("8545556", 39.952778, -75.13583, "Ben Franklin Bridge"),
+    ("8575432", 38.993195, -76.382195, "Chesapeake Bay Bridge · Center Channel"),
+):
+    STATION_CATALOG[f"noaa-airgap-{_station_id}"] = {
+        "layer": "bridge_clearance", "capability": "gaia.bridge.clearance.read@v1", "kind": "point",
+        "mode": "live", "label": f"NOAA PORTS · {_name}", "place": _name, "lat": _lat, "lon": _lon,
+        "max_ttl_s": 120,
+    }
+
+for _did, _layer, _cap, _lat, _lon, _label, _place, _ttl in (
+    ("aoml-drifters-01", "ocean_drifters", "ocean.drifters", 0.0, 0.0,
+     "NOAA AOML ocean drifters", "Global ocean", 300),
+    ("ukpn-live-faults-01", "power_outages", "power.outages", 51.5074, -0.1278,
+     "UK Power Networks Live Faults", "London, East and South East England", 120),
+    ("toronto-road-restrictions-01", "road_events", "road.events", 43.6532, -79.3832,
+     "City of Toronto road restrictions", "Toronto, Canada", 120),
+    ("toronto-bikeshare-01", "bikeshare", "bikeshare", 43.6532, -79.3832,
+     "Bike Share Toronto", "Toronto, Canada", 45),
+):
+    STATION_CATALOG[_did] = {
+        "layer": _layer, "label": _label, "capability": f"gaia.{_cap}.read@v1",
+        "lat": _lat, "lon": _lon, "place": _place, "kind": "region", "mode": "live",
+        "max_ttl_s": _ttl,
+    }
+
+
+for _did, _layer, _cap, _lat, _lon, _label, _place, _ttl in (
+    ("ndw-ev-charging-01", "ev_charging", "ev.charging", 52.09, 5.12, "NDW DOT-NL", "Netherlands", 60),
+    ("bc-wildfire-01", "wildfire_perimeters", "fire.perimeters", 53.7, -126.6,
+     "BC Wildfire Service", "British Columbia, Canada", 300),
+    ("geonet-volcano-01", "volcano", "volcano", -38.0, 176.0, "GeoNet volcanoes", "New Zealand", 300),
+    ("noaa-spc-storm-reports-01", "storm_reports", "storm.reports", 38.0, -97.0,
+     "NOAA SPC Local Storm Reports", "United States", 300),
+    ("noaa-vaac-ash-01", "volcanic_ash", "volcanic.ash", 14.47, -90.88,
+     "NOAA Washington VAAC", "Americas and Caribbean", 300),
+    ("dea-hotspots-01", "fire_hotspots", "fire.hotspots", -24.0, 134.0,
+     "Digital Earth Australia Hotspots", "Australia", 300),
+):
+    STATION_CATALOG[_did] = {
+        "layer": _layer, "label": _label, "capability": f"gaia.{_cap}.read@v1",
+        "lat": _lat, "lon": _lon, "place": _place, "kind": "region", "mode": "live", "max_ttl_s": _ttl,
+    }
+
+for _code, _lat, _lon, _name in (
+    ("pbe", 46.950342, 7.424661, "Bern"), ("pbs", 47.5618, 7.583931, "Basel"),
+    ("pbu", 47.173267, 9.472614, "Buchs (SG)"), ("pcf", 47.113514, 6.832, "La Chaux-de-Fonds"),
+    ("pds", 46.829092, 9.855489, "Davos / Wolfgang"), ("pge", 46.191969, 6.147544, "Genève"),
+    ("plo", 46.172547, 8.787389, "Locarno / Monti"), ("pls", 46.524103, 6.644825, "Lausanne"),
+    ("plu", 46.004231, 8.960631, "Lugano"), ("plz", 47.057678, 8.296803, "Luzern"),
+    ("pmu", 47.630206, 9.236878, "Münsterlingen"), ("pne", 47.000269, 6.949828, "Neuchâtel"),
+    ("ppy", 46.813403, 6.942939, "Payerne"), ("psn", 46.235403, 7.384606, "Sion"),
+    ("pzh", 47.378225, 8.565644, "Zürich"),
+):
+    STATION_CATALOG[f"ch-pollen-{_code}"] = {
+        "layer": "pollen", "label": f"MeteoSwiss pollen · {_name}", "capability": "gaia.pollen.read@v1",
+        "lat": _lat, "lon": _lon, "place": f"{_name}, Switzerland", "kind": "point", "mode": "live",
+    }
+
+for _did, _lat, _lon, _label, _place in (
+    ("ie-buoy-m2", 53.4836, -5.4302, "Marine Institute · M2", "Irish Sea"),
+    ("ie-buoy-m3", 51.215956, -10.548261, "Marine Institute · M3", "Southwest of Ireland"),
+    ("ie-buoy-m5", 51.690425, -6.704336, "Marine Institute · M5", "Celtic Sea"),
+    ("ie-buoy-m6", 53.07482, -15.88135, "Marine Institute · M6", "North Atlantic"),
+    ("au-wave-apollo-bay", -38.75393, 143.72365, "AODN · Apollo Bay", "Victoria, Australia"),
+    ("au-wave-wilsons-prom", -39.54340, 146.46467, "AODN · Wilsons Promontory", "Victoria, Australia"),
+    ("au-wave-wooli", -29.85698, 153.31385, "AODN · Wooli", "New South Wales, Australia"),
+):
+    STATION_CATALOG[_did] = {
+        "layer": "marine", "label": _label, "capability": "gaia.marine.read@v1", "lat": _lat, "lon": _lon,
+        "place": _place, "kind": "point", "mode": "live",
+    }
+
+
 LAYER_META: dict[str, dict[str, Any]] = {
+    "ev_charging": {
+        "color": "#bef264", "label": "EV charging",
+        "labels": {"en": "EV charging", "ru": "Зарядки электромобилей", "es": "Recarga de vehículos eléctricos",
+                   "fr": "Recharge électrique", "zh": "电动车充电"},
+    },
+    "wildfire_perimeters": {
+        "color": "#f97316", "label": "Wildfire perimeters",
+        "labels": {"en": "Wildfire perimeters", "ru": "Периметры природных пожаров",
+                   "es": "Perímetros de incendios", "fr": "Périmètres des feux", "zh": "野火边界"},
+    },
+    "pollen": {
+        "color": "#fde047", "label": "Measured pollen",
+        "labels": {"en": "Measured pollen", "ru": "Измерения пыльцы", "es": "Polen medido",
+                   "fr": "Mesures du pollen", "zh": "花粉实测"},
+    },
+    "storm_reports": {
+        "color": "#7dd3fc", "label": "Storm reports",
+        "labels": {"en": "Storm reports", "ru": "Штормовые сообщения", "es": "Avisos de tormentas observadas",
+                   "fr": "Signalements d’orages", "zh": "强风暴报告"},
+    },
+    "volcanic_ash": {
+        "color": "#c4b5fd", "label": "Volcanic ash",
+        "labels": {"en": "Volcanic ash", "ru": "Вулканический пепел", "es": "Ceniza volcánica",
+                   "fr": "Cendres volcaniques", "zh": "火山灰"},
+    },
+    "fire_hotspots": {
+        "color": "#fb923c", "label": "Australia thermal hotspots",
+        "labels": {"en": "Australia thermal hotspots", "ru": "Тепловые точки Австралии",
+                   "es": "Focos térmicos de Australia", "fr": "Points chauds d’Australie", "zh": "澳大利亚热异常点"},
+    },
+    "power_outages": {
+        "color": "#f59e0b", "label": "Power outages",
+        "labels": {"en": "Power outages", "ru": "Отключения электричества",
+                   "es": "Cortes eléctricos", "fr": "Coupures de courant", "zh": "停电"},
+    },
+    "bridge_clearance": {
+        "color": "#67e8f9", "label": "Bridge clearance",
+        "labels": {"en": "Bridge clearance", "ru": "Просвет под мостами",
+                   "es": "Gálibo de puentes", "fr": "Tirant d’air sous les ponts", "zh": "桥下净空"},
+    },
+    "ocean_drifters": {
+        "color": "#06b6d4", "label": "Ocean drifters",
+        "labels": {"en": "Ocean drifters", "ru": "Дрейфующие буи",
+                   "es": "Boyas a la deriva", "fr": "Bouées dérivantes", "zh": "海洋漂流浮标"},
+    },
+    "bikeshare": {
+        "color": "#a3e635", "label": "Bike share",
+        "labels": {"en": "Bike share", "ru": "Велопрокат", "es": "Bicicletas compartidas",
+                   "fr": "Vélos en libre-service", "zh": "共享单车"},
+    },
+    "ocean_obs": {
+        "color": "#2dd4bf",
+        "label": "Ocean observations",
+        "labels": {
+            "en": "Ocean observations", "ru": "Океанические наблюдения",
+            "es": "Observaciones oceánicas", "fr": "Observations océaniques", "zh": "海洋观测",
+        },
+    },
+    "smoke_forecast": {
+        "color": "#c084fc",
+        "label": "Smoke forecast",
+        "labels": {
+            "en": "Smoke forecast", "ru": "Прогноз дыма",
+            "es": "Pronóstico de humo", "fr": "Prévision de fumée", "zh": "烟霾预报",
+        },
+    },
+    "hf_absorption": {
+        "color": "#f472b6",
+        "label": "HF radio absorption",
+        "labels": {
+            "en": "HF radio absorption", "ru": "Поглощение КВ радиоволн",
+            "es": "Absorción de radio HF", "fr": "Absorption radio HF", "zh": "高频无线电吸收",
+        },
+    },
     "weather": {
         "color": "#3dd6c6",
         "label": "Weather",

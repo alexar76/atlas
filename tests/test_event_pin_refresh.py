@@ -32,6 +32,13 @@ def _const_ms(source: str, name: str) -> int:
     return int(eval(m.group(1), {"__builtins__": {}}))  # noqa: S307 - literal arithmetic
 
 
+def _event_refresh_body() -> str:
+    callbacks = re.findall(r"setInterval\(\(\) => \{(.*?)\n\s*\}, [^;]+\);", _atlas_js(), flags=re.S)
+    body = next((callback for callback in callbacks if "refreshViewport(" in callback), "")
+    assert body, "no interval driving the event-pin refresh"
+    return body
+
+
 def test_event_pins_are_refreshed_well_before_they_expire():
     source = _atlas_js()
     ttl = _const_ms(source, "EVENT_PIN_TTL_MS")
@@ -44,22 +51,12 @@ def test_event_pins_are_refreshed_well_before_they_expire():
 
 def test_the_refresh_timer_exists_and_clears_the_bbox_key():
     """refreshViewport() returns immediately while the bbox key is unchanged."""
-    source = _atlas_js()
-    m = re.search(
-        r"setInterval\(\(\) => \{(.*?)\}, EVENT_PIN_REFRESH_MS\);",
-        source,
-        flags=re.S,
-    )
-    assert m, "no interval driving the event-pin refresh"
-    body = m.group(1)
+    body = _event_refresh_body()
     assert 'lastBboxKey = ""' in body, "a stationary map would early-return forever"
-    assert "refreshViewport(" in body
 
 
 def test_refresh_skips_hidden_tabs():
-    source = _atlas_js()
-    m = re.search(r"setInterval\(\(\) => \{(.*?)\}, EVENT_PIN_REFRESH_MS\);", source, flags=re.S)
-    assert "document.hidden" in m.group(1)
+    assert "document.hidden" in _event_refresh_body()
 
 
 def test_region_cache_expires_before_event_pins():

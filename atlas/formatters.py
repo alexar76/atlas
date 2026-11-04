@@ -5,9 +5,51 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from .map_objects import NDW_NOTICE_IDS, without_expired_source_reading
+from .map_objects import NDW_NOTICE_IDS, TORONTO_ROADS_ID, without_expired_source_reading
 
 FIELD_META: dict[str, dict[str, str]] = {
+    **{f"{taxon}_pollen_grains_m3": {"label": f"{taxon.title()} pollen", "unit": "grains/m³",
+                                   "hint": "Hourly concentration measured by MeteoSwiss"}
+       for taxon in ("alder", "ash", "beech", "birch", "grass", "hazel", "oak")},
+    "connector_count": {"label": "Connectors", "unit": "", "hint": "Reported connectors at this site"},
+    "available_count": {"label": "Available connectors", "unit": "", "hint": "Operator-reported availability"},
+    "max_power_kw": {"label": "Maximum rated power", "unit": "kW", "hint": "Highest published connector rating"},
+    "area_ha": {"label": "Reported fire area", "unit": "ha", "hint": "Size reported for the incident"},
+    "perimeter_area_ha": {"label": "Perimeter area", "unit": "ha", "hint": "Area of the published outline"},
+    "perimeter_observation_unix": {"label": "Perimeter observed", "unit": "", "hint": "Source timestamp of the outline"},
+    "ignition_unix": {"label": "Incident reported", "unit": "", "hint": "Reported start time"},
+    "volcanic_alert_level": {"label": "Volcanic alert level", "unit": "", "hint": "GeoNet volcanic alert scale 0–5"},
+    "hail_size_mm": {"label": "Reported hail diameter", "unit": "mm", "hint": "Preliminary NOAA SPC report"},
+    "forecast_hour": {"label": "Forecast horizon", "unit": "h", "hint": "Hours after advisory issue"},
+    "wave_qc_flag": {"label": "Wave quality flag", "unit": "", "hint": "Provider code 1 is good and 0 is unevaluated"},
+    "sea_temperature_c": {"label": "Sea-surface temperature", "unit": "°C", "hint": "Measured by the buoy"},
+    "wind_direction_deg": {"label": "Wind direction", "unit": "°", "hint": "Direction relative to true north"},
+    "water_level_nn2000_m": {"label": "Water level", "unit": "m NN2000", "hint": "Relative to Norway’s NN2000 vertical datum"},
+    "air_gap_m": {"label": "Bridge clearance", "unit": "m", "hint": "Distance from the designated bridge reference point to the water surface"},
+    "air_gap_sigma_m": {"label": "Sample standard deviation", "unit": "m", "hint": "NOAA’s reported spread for the measurement interval"},
+    "air_gap_outlier_count": {"label": "Outlier samples", "unit": "", "hint": "One-second samples outside NOAA’s three-sigma limit"},
+    "air_gap_flat_flag": {"label": "Flat signal flag", "unit": "", "hint": "NOAA quality flag"},
+    "air_gap_rate_flag": {"label": "Rate flag", "unit": "", "hint": "NOAA quality flag"},
+    "air_gap_limit_flag": {"label": "Limit flag", "unit": "", "hint": "NOAA quality flag"},
+    "sea_level_pressure_hpa": {"label": "Sea-level pressure", "unit": "hPa", "hint": "Pressure reported by the drifter when available"},
+    "customers_affected": {"label": "Customers affected", "unit": "", "hint": "Count reported by UK Power Networks"},
+    "bikes_available": {"label": "Bikes available", "unit": "", "hint": "Bicycles available to rent at the station"},
+    "ebikes_available": {"label": "E-bikes available", "unit": "", "hint": "Electric bicycles included in the available bike count"},
+    "docks_available": {"label": "Docks available", "unit": "", "hint": "Docks reported as available for returns"},
+    "is_renting": {"label": "Rentals enabled", "unit": "", "hint": "Station status reported by Bike Share Toronto"},
+    "is_returning": {"label": "Returns enabled", "unit": "", "hint": "Station status reported by Bike Share Toronto"},
+    "coastal_water_height_m": {"label": "Water height", "unit": "m", "hint": "Above the local GeoNet pressure sensor"},
+    "coastal_sensor_code": {"label": "Sensor code", "unit": "", "hint": "GeoNet local pressure sensor identifier"},
+    "water_temperature_c": {"label": "Water temperature", "unit": "°C", "hint": "Measured water temperature"},
+    "dose_equivalent_nsv_h": {"label": "Ambient dose rate", "unit": "nSv/h", "hint": "Measured ambient gamma dose equivalent per hour"},
+    "drap_frequency_mhz": {"label": "1 dB threshold frequency", "unit": "MHz", "hint": "Highest modeled frequency affected by 1 dB of absorption"},
+    "measurement_depth_m": {"label": "Measurement depth", "unit": "m", "hint": "Depth below the sea surface"},
+    "salinity_psu": {"label": "Salinity", "unit": "PSU", "hint": "Practical salinity at the measurement depth"},
+    "dissolved_oxygen_ml_l": {"label": "Dissolved oxygen", "unit": "mL/L", "hint": "Measured at the specified depth"},
+    "current_speed_mps": {"label": "Current speed", "unit": "m/s", "hint": "Measured water current speed"},
+    "current_direction_deg": {"label": "Current direction", "unit": "°", "hint": "Measured water current direction"},
+    "forecast_smoke_pm2_5_ugm3": {"label": "Forecast PM2.5 in smoke plume", "unit": "µg/m³", "hint": "Modeled near-surface concentration within wildfire smoke plumes"},
+    "forecast_run_unix": {"label": "Model run", "unit": "", "hint": "Time the source model run was initialized"},
     "temperature_c": {
         "label": "Temperature",
         "unit": "°C",
@@ -335,12 +377,25 @@ FIELD_META: dict[str, dict[str, str]] = {
 }
 
 LAYER_BLURB: dict[str, str] = {
+    "bridge_clearance": "Preliminary NOAA PORTS clearance measured at the designated reference point on each bridge.",
+    "ocean_drifters": "Observed drifter position and sea-surface temperature from NOAA AOML OSMC (CC0 1.0).",
+    "power_outages": "UK Power Networks incidents (CC BY 4.0). Map points represent approximate areas reported by the operator.",
+    "bikeshare": "Bike Share Toronto station status (Open Government Licence – Toronto).",
     "weather": "Weather observation — Open-Meteo, NWS, SMHI MetObs, Frost, DMI, FMI, Singapore NEA, HKO, AEMET, MeteoSwiss, CWA, Météo-France, Estonia EWS, Iceland IMO, and other LIVE public feeds (or physics simulator).",
     "air": "Air-quality sample (particulates and gases) — LIVE public feed or simulator.",
-    "tide": "Coastal water level from NOAA, UHSLC, or the UK Environment Agency.",
+    "tide": "Coastal water level from NOAA, UHSLC, the UK Environment Agency, or GeoNet.",
+    "ocean_obs": "SMHI in-situ ocean observations at the displayed sensor depth (CC BY 4.0).",
+    "smoke_forecast": "Environment and Climate Change Canada RAQDPS model, next UTC hour at the displayed 10 km model cell.",
+    "hf_absorption": "NOAA SWPC D-RAP modeled frequency threshold for 1 dB of absorption on a 2° × 4° source grid.",
     "river_forecast": "NOAA/NWS river stage forecast on the local gage datum.",
     "river": "River discharge and stage — USGS, ECCC, SMHI hydro, PEGELONLINE, EA, RWS, SEPA, NRW, Hub'Eau, eHYD, BAFU/FOEN (geodetic water level, not USGS stage).",
     "marine": "Wave height and sea-surface temperature — NDBC buoy or Open-Meteo Marine.",
+    "ev_charging": "NDW DOT-NL charging connector availability (CC0 1.0).",
+    "wildfire_perimeters": "BC Wildfire Service incident status and reported outlines.",
+    "pollen": "MeteoSwiss automatic station measurements of airborne pollen (CC BY 4.0).",
+    "storm_reports": "NOAA SPC preliminary local reports of tornadoes, hail and wind.",
+    "volcanic_ash": "NOAA Washington VAAC volcanic ash advisory geometry. Consult the official briefing for flight decisions.",
+    "fire_hotspots": "Geoscience Australia satellite thermal detections (CC BY 4.0).",
     "grid": "National electricity carbon intensity for the UK grid.",
     "quake": "Latest significant earthquake — USGS, EMSC, GeoNet, and/or GeoShake.",
     "energy": "Household energy meter — physics simulator (no upstream public API).",
@@ -369,7 +424,7 @@ LAYER_BLURB: dict[str, str] = {
     "adsb": "Public ADS-B via ADSB.lol (ODbL 1.0). Not own-edge dump1090, not OpenSky/ADSBx.",
     "aviation": "Airport METAR from NOAA Aviation Weather Center (U.S. PD). In-situ instruments — not a TAF.",
     "road": "Fintraffic Digitraffic road-weather stations (CC BY 4.0 — Finnish roads only).",
-    "rail": "Fintraffic Digitraffic train locations (CC BY 4.0 — Finnish rail only).",
+    "rail": "Published train positions from Fintraffic in Finland or Entur in Norway.",
     "drought": "U.S. Drought Monitor weekly state statistics (attribute NDMC / USDA / NOAA / NASA).",
     "smoke": "NOAA/NESDIS HMS qualitative smoke polygons (U.S. public domain). Polygon centroids, not PM2.5 sensors.",
     "water_quality": "USGS automated continuous water quality (U.S. public domain; values may be provisional).",
@@ -389,10 +444,25 @@ LAYER_BLURB: dict[str, str] = {
 }
 
 _LAYER_FIELD_HINTS: dict[tuple[str, str], str] = {
+    ("fire_hotspots", "brightness_k"): "Brightness temperature reported by Digital Earth Australia Hotspots",
+    ("volcanic_ash", "base_ft"): "Base of the ash cloud in the VAAC bulletin",
+    ("volcanic_ash", "top_ft"): "Top of the ash cloud in the VAAC bulletin",
+    ("bridge_clearance", "observation_unix"): "Time of the NOAA clearance measurement",
+    ("ocean_drifters", "observation_unix"): "Time of the drifter observation",
+    ("bikeshare", "observation_unix"): "When the station last reported its availability",
+    ("ev_charging", "observation_unix"): "When the operator last changed the site data",
+    ("pollen", "observation_unix"): "Time of the hourly pollen sample",
+    ("storm_reports", "observation_unix"): "Time of the reported severe weather",
     ("groundwater", "observation_unix"): "When the well measurement was taken",
     ("tide", "observation_unix"): "When the coastal water level was measured",
     ("marine", "observation_unix"): "Start of the wave sampling interval",
     ("snow", "observation_unix"): "Time of the paired SNOTEL snow measurements",
+    ("river", "observation_unix"): "When the river gauge observation was made",
+    ("radiation", "observation_unix"): "End of the BfS hourly measurement interval",
+    ("ocean_obs", "observation_unix"): "Timestamp shared by the measurements at this depth",
+    ("rail", "observation_unix"): "When the operator recorded the train position",
+    ("hf_absorption", "forecast_valid_unix"): "UTC validity of the D-RAP model snapshot",
+    ("smoke_forecast", "forecast_valid_unix"): "Target UTC hour of the ECCC forecast",
     ("jamming", "severity_score"): "GNSS interference severity score",
     ("effis", "severity_score"): "EFFIS burnt-area score from polygon size",
     ("flood", "severity_score"): "Flood / flash-flood warning severity",
@@ -447,6 +517,12 @@ def headline(layer: str, values: dict[str, Any]) -> str:
             daqi = _fmt_num(values.get("air_quality_index"), digits=0)
             return f"UK DAQI {daqi}/10" if daqi is not None else "Air quality"
         if layer == "tide":
+            nn2000 = _fmt_num(values.get("water_level_nn2000_m"), digits=3)
+            if nn2000 is not None:
+                return f"Water {nn2000} m NN2000"
+            sensor = _fmt_num(values.get("coastal_water_height_m"), digits=3)
+            if sensor is not None:
+                return f"Water {sensor} m above sensor"
             maod = _fmt_num(values.get("water_level_maod"), digits=3)
             if maod is not None:
                 return f"Water {maod} mAOD"
@@ -455,6 +531,32 @@ def headline(layer: str, values: dict[str, Any]) -> str:
         if layer == "river_forecast":
             peak = _fmt_num(values.get("forecast_stage_m"), digits=2)
             return f"Forecast peak {peak} m" if peak is not None else "River forecast"
+        if layer == "bridge_clearance":
+            gap = _fmt_num(values.get("air_gap_m"), digits=2)
+            return f"Clearance {gap} m" if gap is not None else "Bridge clearance"
+        if layer == "ocean_drifters":
+            sst = _fmt_num(values.get("sst_c"), digits=1)
+            return f"Sea surface {sst} °C" if sst is not None else "Ocean drifter"
+        if layer == "power_outages":
+            if values.get("power_outage_count") == 0:
+                return "No current outages reported"
+            customers = _fmt_num(values.get("customers_affected"), digits=0)
+            return f"{customers} customers affected" if customers is not None else "Reported power outage"
+        if layer == "bikeshare":
+            bikes, docks = (_fmt_num(values.get(key), digits=0) for key in ("bikes_available", "docks_available"))
+            return f"{bikes} bikes · {docks} docks" if bikes is not None and docks is not None else "Bike share"
+        if layer == "ev_charging":
+            available, total = (_fmt_num(values.get(key), digits=0) for key in ("available_count", "connector_count"))
+            return f"{available}/{total} connectors available" if available is not None and total is not None else "EV charging"
+        if layer == "pollen":
+            samples = [float(value) for key, value in values.items() if key.endswith("_pollen_grains_m3")]
+            return f"Pollen up to {_fmt_num(max(samples), digits=1)} grains/m³" if samples else "Measured pollen"
+        if layer == "wildfire_perimeters":
+            area = _fmt_num(values.get("area_ha"), digits=3)
+            return f"Reported area {area} ha" if area is not None else "Wildfire incident"
+        if layer == "fire_hotspots":
+            brightness = _fmt_num(values.get("brightness_k"), digits=1)
+            return f"Brightness {brightness} K" if brightness is not None else "Satellite thermal detection"
         if layer == "river":
             q = _fmt_num(values.get("discharge_m3s"), digits=1)
             return f"Q {q} m³/s" if q is not None else "River"
@@ -467,6 +569,18 @@ def headline(layer: str, values: dict[str, Any]) -> str:
         if layer == "marine":
             wh = _fmt_num(values.get("wave_height_m"), digits=2)
             return f"Waves {wh} m" if wh is not None else "Marine"
+        if layer == "ocean_obs":
+            sal = _fmt_num(values.get("salinity_psu"), digits=2)
+            current = _fmt_num(values.get("current_speed_mps"), digits=2)
+            if sal is not None:
+                return f"Salinity {sal} PSU"
+            return f"Current {current} m/s" if current is not None else "Ocean observations"
+        if layer == "smoke_forecast":
+            pm = _fmt_num(values.get("forecast_smoke_pm2_5_ugm3"), digits=1)
+            return f"Forecast PM2.5 {pm} µg/m³" if pm is not None else "Smoke forecast"
+        if layer == "hf_absorption":
+            freq = _fmt_num(values.get("drap_frequency_mhz"), digits=1)
+            return f"1 dB threshold {freq} MHz" if freq is not None else "D-RAP model"
         if layer == "grid":
             ci = _fmt_num(values.get("carbon_intensity_gco2_kwh"), digits=0)
             return f"{ci} gCO₂/kWh" if ci is not None else "Grid"
@@ -480,8 +594,13 @@ def headline(layer: str, values: dict[str, Any]) -> str:
             b = _fmt_num(values.get("brightness_k"), digits=0)
             return f"Fire {b} K" if b is not None else "Wildfire"
         if layer == "radiation":
+            dose = _fmt_num(values.get("dose_equivalent_nsv_h"), digits=1)
+            if dose is not None:
+                return f"{dose} nSv/h"
             c = _fmt_num(values.get("cpm"), digits=1)
             return f"{c} cpm" if c is not None else "Radiation"
+        if layer == "rail" and "observation_unix" in values:
+            return "Reported train position"
         if layer == "jamming":
             s = _fmt_num(values.get("severity_score"), digits=0)
             return f"GNSS sev {s}" if s is not None else "Jamming"
@@ -530,6 +649,9 @@ def headline(layer: str, values: dict[str, Any]) -> str:
             s = _fmt_num(values.get("severity_score"), digits=0)
             return f"EFFIS {s}" if s is not None else "EFFIS"
         if layer == "volcano":
+            level = _fmt_num(values.get("volcanic_alert_level"), digits=0)
+            if level is not None:
+                return f"Volcanic alert level {level}"
             s = _fmt_num(values.get("severity_score"), digits=0)
             return f"Volcano {s}" if s is not None else "Volcano"
         if layer == "ais":
@@ -607,10 +729,10 @@ def metric_rows(values: dict[str, Any], *, layer: str = "") -> list[dict[str, st
     rows: list[dict[str, str]] = []
     for key, raw in values.items():
         meta = FIELD_META.get(key, {"label": key.replace("_", " "), "unit": "", "hint": ""})
-        digits = 3 if key in {"water_level_m", "water_level_maod", "gage_height_m", "latitude", "longitude"} else (
+        digits = 3 if key in {"water_level_m", "water_level_maod", "coastal_water_height_m", "gage_height_m", "latitude", "longitude"} else (
             2 if key in {"wave_height_m", "discharge_m3s", "pool_elev_m", "groundwater_depth_m",
                          "groundwater_reference_depth_m", "groundwater_level_ngf_m",
-                         "forecast_stage_m"} else (
+                         "forecast_stage_m", "current_speed_mps", "salinity_psu"} else (
                 0 if key.endswith("_kwh") else 1
             )
         )
@@ -635,10 +757,13 @@ def metric_rows(values: dict[str, Any], *, layer: str = "") -> list[dict[str, st
         unit = meta.get("unit") or ""
         display = f"{formatted} {unit}".strip()
         hint = _LAYER_FIELD_HINTS.get((layer, key)) or meta.get("hint") or ""
+        label = meta["label"]
+        if key == "forecast_valid_unix" and layer in {"hf_absorption", "smoke_forecast"}:
+            label = "Model valid at" if layer == "hf_absorption" else "Forecast valid at"
         rows.append(
             {
                 "key": key,
-                "label": meta["label"],
+                "label": label,
                 "value": display,
                 "raw": formatted,
                 "unit": unit,
@@ -701,7 +826,39 @@ def build_detail(
         blurb = "Finnish Meteorological Institute in-situ wave buoy (CC BY 4.0)"
     elif device_id.startswith("snotel-"):
         blurb = "USDA NRCS SNOTEL in-situ snow depth and snow-water equivalent (U.S. public domain)"
+    elif device_id.startswith("ie-buoy-"):
+        blurb = "Irish Marine Institute / Met Éireann buoy observations (CC BY 4.0)."
+    elif device_id.startswith("au-wave-"):
+        blurb = "AODN / IMOS observed waves from an Australian wave buoy (CC BY 4.0)."
+    elif device_id.startswith("geonet-volcano-status-"):
+        blurb = "GeoNet New Zealand volcano status and time-stamped camera snapshots (CC BY 3.0 NZ)."
+    elif device_id.startswith("geonet-coastal-"):
+        blurb = "GeoNet coastal water height relative to the local pressure sensor (CC BY 3.0 NZ)."
+    elif device_id.startswith("chmi-river-"):
+        blurb = "Czech Hydrometeorological Institute observed river stage and discharge (CC BY 4.0)."
+    elif device_id.startswith("arso-river-"):
+        blurb = "Slovenian Environment Agency (ARSO) preliminary river observations. Stage refers to the local gauge datum."
+    elif device_id.startswith("kartverket-tide-"):
+        blurb = "Kartverket observed sea level relative to Norway’s NN2000 vertical datum (CC BY 4.0)."
+    elif device_id.startswith("bfs-odl-"):
+        blurb = "BfS ambient gamma dose equivalent rate, measured hourly (dl-de/by-2-0)."
+    elif device_id.startswith("entur-tr-"):
+        blurb = "Entur's latest reported Vy position (NLOD)."
+    elif station.get("drap_resolution") == "overview":
+        blurb = "NOAA SWPC D-RAP overview: maximum modeled 1 dB threshold within the 6° × 12° tile. Zoom in for source values."
+    elif device_id.startswith("drap-cell-"):
+        blurb = "NOAA SWPC D-RAP modeled 1 dB threshold for this native 2° × 4° grid cell."
     boundary = {}
+    if layer == "volcano" and station.get("aviation_color_code"):
+        boundary["evidence_boundary"] = f"Aviation color {station['aviation_color_code']}."
+    if layer == "wildfire_perimeters" and station.get("status"):
+        status = str(station["status"])
+        outline = station.get("perimeter_observed_at")
+        boundary["evidence_boundary"] = f"Status {status}." + (f" Perimeter observed {outline}." if outline else "")
+    if layer == "volcanic_ash" and station.get("issue_at"):
+        boundary["evidence_boundary"] = (
+            f"Advisory issued {station['issue_at']}. Valid time {station.get('valid_at', '')}."
+        )
     if station.get("claim_class") == "surveyed_flood_threshold_exceedance":
         blurb = "USGS surveyed flood impact threshold"
         boundary["evidence_boundary"] = (
@@ -712,12 +869,27 @@ def build_detail(
     if station.get("claim_class") == "published_road_notice":
         start = station.get("valid_from", "")
         end = station.get("valid_until") or "open-ended"
-        provider = "NDW" if station.get("parent_id") in NDW_NOTICE_IDS else "Fintraffic"
+        parent_id = station.get("parent_id")
+        if parent_id == TORONTO_ROADS_ID:
+            provider = "City of Toronto"
+        else:
+            provider = "NDW" if parent_id in NDW_NOTICE_IDS else "Fintraffic"
         blurb = f"{provider} notice within its published dates"
         boundary["evidence_boundary"] = (
             f"Updated {station.get('issue_at', '')}. Published validity {start} to {end}. "
             f"Check {provider} for current restrictions and work schedules."
         )
+    if layer == "power_outages" and station.get("outage_type"):
+        details = [str(station["outage_type"])]
+        if station.get("incident_status"):
+            details.append(str(station["incident_status"]))
+        if station.get("operating_zone"):
+            details.append(str(station["operating_zone"]))
+        if station.get("estimated_restoration_at"):
+            details.append(f"Estimated restoration {station['estimated_restoration_at']}")
+        elif station.get("estimated_restoration_local"):
+            details.append(f"Estimated restoration {station['estimated_restoration_local']} (operator local time)")
+        boundary["evidence_boundary"] = " · ".join(details)
     if station.get("claim_class") == "aviation_forecast_snapshot":
         blurb = "NOAA/NWS aviation forecast snapshot"
         boundary["evidence_boundary"] = (

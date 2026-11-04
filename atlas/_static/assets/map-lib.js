@@ -313,7 +313,11 @@
     river: true,
     river_forecast: true,
     marine: true,
+    ocean_obs: false,
+    ocean_drifters: false,
     grid: true,
+    power_outages: false,
+    bridge_clearance: false,
     quake: true,
     energy: true,
     fire: true,
@@ -336,6 +340,7 @@
     cyclone: true,
     adsb: true,
     smoke: true,
+    smoke_forecast: false,
     water_quality: true,
     groundwater: true,
     dart: true,
@@ -350,6 +355,15 @@
     land_temperature: true,
     road_events: false,
     aviation_hazards: false,
+    rail: true,
+    bikeshare: false,
+    ev_charging: false,
+    wildfire_perimeters: false,
+    pollen: false,
+    storm_reports: false,
+    volcanic_ash: false,
+    fire_hotspots: false,
+    hf_absorption: false,
   };
 
   function isUnsetEventPin(s) {
@@ -361,7 +375,7 @@
         || layer === "effis" || layer === "volcano" || layer === "ais" || layer === "tsunami"
         || layer === "cyclone" || layer === "adsb" || layer === "smoke"
         || layer === "precipitation" || layer === "radar" || layer === "sea_ice"
-        || layer === "road_events" || layer === "aviation_hazards")) {
+        || layer === "road_events" || layer === "aviation_hazards" || layer === "hf_absorption")) {
       return false;
     }
     return !s.parent_id && !s.has_reading && Math.abs(s.lat) < 1e-6 && Math.abs(s.lon) < 1e-6;
@@ -454,6 +468,7 @@
   function stationFeatureProps(s) {
     const values = s && s.values && typeof s.values === "object" ? s.values : {};
     const aurora = Number(values.aurora_pct);
+    const hfFrequency = Number(values.drap_frequency_mhz);
     const gnssScore = Number(values.degradation_score);
     const gnssState = String(s.state || (Number.isFinite(gnssScore)
       ? (gnssScore >= 75 ? "severe_degradation" : gnssScore >= 50 ? "degraded" : gnssScore >= 25 ? "mild_degradation" : "normal")
@@ -482,6 +497,8 @@
       // Space-weather grid intensity drives point size while every cell stays
       // a normal clickable feature. Other layers use their default geometry.
       intensity: Number.isFinite(aurora) ? Math.max(0, Math.min(100, aurora)) : 0,
+      hf_frequency: Number.isFinite(hfFrequency) ? Math.max(0, hfFrequency) : 0,
+      hf_overview: s.drap_resolution === "overview",
       gnss_score: Number.isFinite(gnssScore) ? Math.max(0, Math.min(100, gnssScore)) : 0,
       gnss_state: gnssState,
       height: towerHeight(s),
@@ -794,7 +811,11 @@
             8, ["case", ["==", ["get", "kind"], "region"], 14, 11],
           ],
           "circle-color": ["get", "color"],
-          "circle-opacity": 0.38,
+          "circle-opacity": [
+            "case", ["==", ["get", "layer"], "hf_absorption"],
+            ["interpolate", ["linear"], ["get", "hf_frequency"], 0, 0.05, 30, 0.34],
+            0.38,
+          ],
           "circle-blur": 0.75,
           "circle-pitch-alignment": "map",
         },
@@ -831,7 +852,11 @@
             8,
           ],
           "circle-color": "#041018",
-          "circle-opacity": 0.72,
+          "circle-opacity": [
+            "case", ["==", ["get", "layer"], "hf_absorption"],
+            ["interpolate", ["linear"], ["get", "hf_frequency"], 0, 0.16, 30, 0.72],
+            0.72,
+          ],
           "circle-pitch-alignment": "map",
         },
       });
@@ -844,6 +869,10 @@
             "case",
             ["==", ["get", "layer"], "spacewx"],
             ["interpolate", ["linear"], ["get", "intensity"], 0, 3, 100, 9],
+            ["==", ["get", "layer"], "hf_absorption"],
+            ["case", ["get", "hf_overview"],
+              ["interpolate", ["linear"], ["get", "hf_frequency"], 0, 3, 30, 7],
+              ["interpolate", ["linear"], ["get", "hf_frequency"], 0, 2, 30, 5]],
             ["==", ["get", "layer"], "gnss"],
             ["interpolate", ["linear"], ["get", "gnss_score"], 0, 4, 100, 8],
             ["==", ["get", "kind"], "region"], 7.5,
@@ -868,7 +897,16 @@
             "#ffffff",
             "rgba(255,255,255,0.75)",
           ],
-          "circle-opacity": ["case", ["get", "online"], 1, 0.45],
+          "circle-opacity": [
+            "case", ["==", ["get", "layer"], "hf_absorption"],
+            ["interpolate", ["linear"], ["get", "hf_frequency"], 0, 0.22, 30, 1],
+            ["get", "online"], 1, 0.45,
+          ],
+          "circle-stroke-opacity": [
+            "case", ["==", ["get", "layer"], "hf_absorption"],
+            ["interpolate", ["linear"], ["get", "hf_frequency"], 0, 0.24, 30, 1],
+            1,
+          ],
           "circle-pitch-alignment": "map",
         },
       });

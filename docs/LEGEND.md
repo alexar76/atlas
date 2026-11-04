@@ -8,7 +8,7 @@ This legend is generated from `atlas.stations.LAYER_META` and `STATION_CATALOG`;
 
 Colour identifies the layer, not severity or sensor health. Some related layers intentionally share a colour; use the layer key and filter to distinguish them. LIVE/SIM state and availability are shown separately.
 
-The catalog currently defines 53 layers and 980 configured devices. Event and dense feeds may create additional reading points at runtime.
+The catalog currently defines 66 layers and 1042 configured devices. Event and dense feeds may create additional reading points at runtime.
 
 The full map also offers **NOAA radar imagery**, a NOAA/NWS MRMS reflectivity raster outside the data-layer count. The `radar` row below represents NEXRAD station status.
 
@@ -16,18 +16,31 @@ In `flood`, `usgs-rtfi-01` identifies surveyed locations with preliminary thresh
 
 | Colour | Layer key | Meaning | Example device IDs |
 |---|---|---|---|
+| <span style="color:#bef264">●</span> `#bef264` | `ev_charging` | EV charging | `ndw-ev-charging-01` |
+| <span style="color:#f97316">●</span> `#f97316` | `wildfire_perimeters` | Wildfire perimeters | `bc-wildfire-01` |
+| <span style="color:#fde047">●</span> `#fde047` | `pollen` | Measured pollen | `ch-pollen-pbe`, `ch-pollen-pbs`, `ch-pollen-pbu`, `ch-pollen-pcf` +11 |
+| <span style="color:#7dd3fc">●</span> `#7dd3fc` | `storm_reports` | Storm reports | `noaa-spc-storm-reports-01` |
+| <span style="color:#c4b5fd">●</span> `#c4b5fd` | `volcanic_ash` | Volcanic ash | `noaa-vaac-ash-01` |
+| <span style="color:#fb923c">●</span> `#fb923c` | `fire_hotspots` | Australia thermal hotspots | `dea-hotspots-01` |
+| <span style="color:#f59e0b">●</span> `#f59e0b` | `power_outages` | Power outages | `ukpn-live-faults-01` |
+| <span style="color:#67e8f9">●</span> `#67e8f9` | `bridge_clearance` | Bridge clearance | `noaa-airgap-8726371`, `noaa-airgap-8545556`, `noaa-airgap-8575432` |
+| <span style="color:#06b6d4">●</span> `#06b6d4` | `ocean_drifters` | Ocean drifters | `aoml-drifters-01` |
+| <span style="color:#a3e635">●</span> `#a3e635` | `bikeshare` | Bike share | `toronto-bikeshare-01` |
+| <span style="color:#2dd4bf">●</span> `#2dd4bf` | `ocean_obs` | Ocean observations | `smhi-ocean-flinten16-8m`, `smhi-ocean-flinten16-2m`, `smhi-ocean-flinten7-8m`, `smhi-ocean-kalmar2-0m` |
+| <span style="color:#c084fc">●</span> `#c084fc` | `smoke_forecast` | Smoke forecast | `eccc-smoke-seattle`, `eccc-smoke-toronto`, `eccc-smoke-calgary` |
+| <span style="color:#f472b6">●</span> `#f472b6` | `hf_absorption` | HF radio absorption | `swpc-drap-01` |
 | <span style="color:#3dd6c6">●</span> `#3dd6c6` | `weather` | Weather | `at-wx-wien-01`, `lt-wx-vilnius-01`, `lv-wx-riga-01`, `jp-wx-tokyo-01`, `cz-wx-praha-01`, `kr-wx-seoul-01` +265 |
 | <span style="color:#7ec8ff">●</span> `#7ec8ff` | `air` | Air quality | `hk-aqhi-centralwestern-01`, `sg-psi-central-01`, `be-aq-brussels-01`, `aurn-01` +122 |
-| <span style="color:#4ea8de">●</span> `#4ea8de` | `tide` | Tide | `ea-tide-e70039`, `uhslc-01`, `noaa-tide-01`, `noaa-tide-sf` +19 |
-| <span style="color:#38bdf8">●</span> `#38bdf8` | `river` | Rivers | `lt-hydro-kaunas-01`, `lv-hydro-riga-01`, `ie-river-athlone-01`, `bafu-basel-01` +163 |
+| <span style="color:#4ea8de">●</span> `#4ea8de` | `tide` | Tide | `kartverket-tide-bgo`, `geonet-coastal-auct`, `ea-tide-e70039`, `uhslc-01` +29 |
+| <span style="color:#38bdf8">●</span> `#38bdf8` | `river` | Rivers | `arso-river-1060`, `chmi-river-042000`, `lt-hydro-kaunas-01`, `lv-hydro-riga-01`, `ie-river-athlone-01` +169 |
 | <span style="color:#22d3ee">●</span> `#22d3ee` | `river_forecast` | River forecasts | `nwps-pttp1`, `nwps-rmdv2`, `nwps-vckm6`, `nwps-dlrt2` |
-| <span style="color:#2563eb">●</span> `#2563eb` | `marine` | Marine | `fmi-marine-103976`, `cdip-pointreyes-01`, `ndbc-01`, `om-marine-01` +26 |
+| <span style="color:#2563eb">●</span> `#2563eb` | `marine` | Marine | `ie-buoy-m2`, `au-wave-apollo-bay`, `fmi-marine-103976`, `cdip-pointreyes-01`, `ndbc-01`, `om-marine-01` +31 |
 | <span style="color:#84cc16">●</span> `#84cc16` | `ghg` | Greenhouse gas | `icos-htm-01`, `icos-zsf-01`, `icos-lin-01` |
 | <span style="color:#c4a35a">●</span> `#c4a35a` | `grid` | Grid carbon | `rte-grid-01`, `uk-grid-01`, `eia-01` |
 | <span style="color:#ff6b4a">●</span> `#ff6b4a` | `quake` | Earthquakes | `jma-quake-01`, `usgs-quake-01`, `emsc-01`, `geonet-01` +2 |
 | <span style="color:#e8b86d">●</span> `#e8b86d` | `energy` | Energy | `em-01` |
 | <span style="color:#f97316">●</span> `#f97316` | `fire` | Wildfire | `firms-fire-01` |
-| <span style="color:#a3e635">●</span> `#a3e635` | `radiation` | Radiation | `safecast-01`, `safecast-tokyo`, `safecast-sf`, `safecast-denver` +10 |
+| <span style="color:#a3e635">●</span> `#a3e635` | `radiation` | Radiation | `bfs-odl-01`, `safecast-01`, `safecast-tokyo`, `safecast-sf` +11 |
 | <span style="color:#e879f9">●</span> `#e879f9` | `jamming` | GNSS jamming | `cybernews-jam-01` |
 | <span style="color:#34d399">●</span> `#34d399` | `gnss` | GNSS integrity | `gnss-euref-01`, `gnss-ga-01` |
 | <span style="color:#94a3b8">●</span> `#94a3b8` | `traffic` | Edge traffic | `feeder-adsb-01`, `feeder-ais-01` |
@@ -40,7 +53,7 @@ In `flood`, `usgs-rtfi-01` identifies surveyed locations with preliminary thresh
 | <span style="color:#2dd4bf">●</span> `#2dd4bf` | `iot` | Edge IoT | `feeder-iot-01` |
 | <span style="color:#38bdf8">●</span> `#38bdf8` | `flood` | Flood | `vic-meuse-01`, `gfm-flood-01`, `nws-flood-01`, `ea-flood-01` +19 |
 | <span style="color:#ea580c">●</span> `#ea580c` | `effis` | EFFIS fires | `effis-01` |
-| <span style="color:#ef4444">●</span> `#ef4444` | `volcano` | Volcanoes | `usgs-volcano-01` |
+| <span style="color:#ef4444">●</span> `#ef4444` | `volcano` | Volcanoes | `geonet-volcano-01`, `usgs-volcano-01` |
 | <span style="color:#0891b2">●</span> `#0891b2` | `ais` | Public AIS | `fintraffic-ais-01`, `kystverket-ais-01` |
 | <span style="color:#e11d48">●</span> `#e11d48` | `tsunami` | Tsunami alerts | `nws-tsunami-01`, `ptwc-01` |
 | <span style="color:#7c3aed">●</span> `#7c3aed` | `cyclone` | Tropical cyclones | `jma-typhoon-01`, `nhc-cyclone-01` |
@@ -60,11 +73,11 @@ In `flood`, `usgs-rtfi-01` identifies surveyed locations with preliminary thresh
 | <span style="color:#ef4444">●</span> `#ef4444` | `land_temperature` | Land temperature | `lst-ottawa`, `lst-berlin`, `lst-delhi`, `lst-tokyo` +2 |
 | <span style="color:#38bdf8">●</span> `#38bdf8` | `aviation` | Aviation METAR | `metar-kjfk-01`, `metar-klga-01`, `metar-kbos-01`, `metar-kord-01` +10 |
 | <span style="color:#f59e0b">●</span> `#f59e0b` | `road` | Road weather | `fintraffic-road-01` |
-| <span style="color:#64748b">●</span> `#64748b` | `rail` | Rail traffic | `fintraffic-rail-01` |
+| <span style="color:#64748b">●</span> `#64748b` | `rail` | Rail traffic | `entur-rail-vyg-01`, `fintraffic-rail-01` |
 | <span style="color:#d97706">●</span> `#d97706` | `drought` | Drought | `usdm-01` |
 | <span style="color:#0284c7">●</span> `#0284c7` | `reservoir` | Reservoirs | `usace-keys-01`, `usace-pine-01`, `usace-deni-01`, `usace-huds-01` |
 | <span style="color:#facc15">●</span> `#facc15` | `uv` | UV forecast | `epa-uv-01` |
-| <span style="color:#fb923c">●</span> `#fb923c` | `road_events` | Road notices | `fintraffic-road-announcements-01`, `fintraffic-roadworks-01`, `ndw-road-srti-01`, `ndw-road-closures-01` |
+| <span style="color:#fb923c">●</span> `#fb923c` | `road_events` | Road notices | `toronto-road-restrictions-01`, `ndw-road-srti-01`, `fintraffic-road-announcements-01`, `fintraffic-roadworks-01` +1 |
 | <span style="color:#a78bfa">●</span> `#a78bfa` | `aviation_hazards` | Aviation hazard forecasts | `awc-gairmet-01` |
 | <span style="color:#eab308">●</span> `#eab308` | `power_price` | Power price | `smard-price-de-lu`, `smard-price-at`, `smard-price-be`, `smard-price-no2` +11 |
 | <span style="color:#10b981">●</span> `#10b981` | `imagery` | Satellite imagery | `s2-tempelhof`, `s2-wannsee`, `s2-grandcanyon`, `s2-amazon` +1 |
