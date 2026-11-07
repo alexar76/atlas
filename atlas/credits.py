@@ -490,7 +490,11 @@ def _note_low_balance(account_id: str, remaining: float, price_usd: float) -> bo
     if threshold <= 0 or remaining > threshold:
         return False
     now = time.monotonic()
-    if now - _low_warned.get(account_id, 0.0) >= LOW_BALANCE_LOG_INTERVAL_S:
+    # Default must not be 0.0: on a fresh host monotonic() is often < the interval,
+    # so treating "never warned" as epoch-zero silently suppresses the first warning
+    # for the first LOW_BALANCE_LOG_INTERVAL_S after boot (and every CI runner).
+    last = _low_warned.get(account_id)
+    if last is None or now - last >= LOW_BALANCE_LOG_INTERVAL_S:
         _low_warned[account_id] = now
         calls_left = int(remaining / price_usd) if price_usd > 0 else 0
         log.warning(
