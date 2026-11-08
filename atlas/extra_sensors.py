@@ -173,7 +173,11 @@ KIND_META: dict[str, dict[str, str]] = {
 
 
 def _config_path() -> Path:
-    return Path(__file__).resolve().parents[1] / "config" / "extra_sensors.yaml"
+    # The repository copy (atlas/config/) is the one operators edit. A pip install has no such folder, so its
+    # wheel carries a copy in atlas/_config/; reading only the repository path made the import fail there.
+    here = Path(__file__).resolve()
+    repo = here.parents[1] / "config" / "extra_sensors.yaml"
+    return repo if repo.is_file() else here.parent / "_config" / "extra_sensors.yaml"
 
 
 @lru_cache(maxsize=1)

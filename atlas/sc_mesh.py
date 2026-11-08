@@ -25,7 +25,11 @@ class ScCity(TypedDict, total=False):
 def _config_path() -> Path:
     # Local/monorepo: atlas/atlas/sc_mesh.py → atlas/config/
     # Docker image:   /app/atlas/sc_mesh.py → /app/config/
-    return Path(__file__).resolve().parents[1] / "config" / "sc_mesh_cities.yaml"
+    # The repository copy (atlas/config/) is the one operators edit. A pip install has no such folder, so its
+    # wheel carries a copy in atlas/_config/; reading only the repository path made the import fail there.
+    here = Path(__file__).resolve()
+    repo = here.parents[1] / "config" / "sc_mesh_cities.yaml"
+    return repo if repo.is_file() else here.parent / "_config" / "sc_mesh_cities.yaml"
 
 
 @lru_cache(maxsize=1)
