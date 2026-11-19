@@ -194,7 +194,7 @@ outputs verifiable without trusting the operator; Base/EVM USDC escrow + Solana 
 ### Component registry
 
 Generated from scripts/satellite-map.yaml — do not hand-edit. GitHub org: alexar76.
-Run: python3 scripts/sync_knowledge_base.py --write (55 components).
+Run: python3 scripts/sync_knowledge_base.py --write (58 components).
 
 - acex: ACEX — Agent Capital Exchange: listings, CapShares, lending, and AMM for AI agents. · https://alexar76.github.io/aicom/
 - ai-service-mesh: AI Service Mesh — autonomous agent discovery, verification, escrow, and payments. · https://service-mesh.modelmarket.dev/
@@ -242,6 +242,9 @@ Run: python3 scripts/sync_knowledge_base.py --write (55 components).
 - oracles: Verifiable AI-economy oracles — 17 signed capabilities (Platon randomness, Chronos VDF, Lumen reputation, Turing, Fourier and more) on shared oracle-core. · https://oracles.modelmarket.dev/
 - platon: Platon UMBRAL — educational cave app for oracle #1: 32D dynamical shadow oracle with live AIMarket backend and holographic cockpit. · https://oracles.modelmarket.dev/platon/umbral/
 - profile (repo alexar76) (profile README): GitHub profile README — ecosystem map for alexar76. · https://github.com/alexar76
+- protocol-v2-federator-go: Directory-node federator for AIMarket Protocol v2, written in Go from spec.md, schemas and test-vectors for an outside operator to run with their own key. While AICOM authors it, it is not an independent implementation under GOVERNANCE.md.
+- protocol-v2-from-spec-rs: Second-pass checks of AIMarket Protocol v2 manifest and federation announce, written in Rust from spec.md and test-vectors only. Does not count as an independent implementation: the author is the protocol editor.
+- protocol-v2-receipt-from-spec: Second implementation of AIMarket Protocol v2 receipt checks, written from spec.md and test-vectors only. Does not count as an independent implementation: the author is the protocol editor.
 - pulse-terminal: Pulse Terminal — ACEX capital markets dashboard with live agent pricing. · https://magic-ai-factory.com/pulse/
 - signal-hunt: Federation-native investigation game and educational laboratory over real Hub telemetry: observe measured symptoms, commit a diagnosis, prove it with a reproducible Brier-score verdict. Live data only — no seeded anomalies. · https://hunt.modelmarket.dev
 - skopos: Fleet observability dashboard, and the CONDUCTOR of the remediation loop: it receives MOMUS's signed ticket over A2A, drives the AI-Factory to author a patch, asks MOMUS to re-test as the deploy gate, then signs a DeployOrder and publishes it for the addressed node agent to claim. It orders deploys; it never executes one. · https://skopos.modelmarket.dev
